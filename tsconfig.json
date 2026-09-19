@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "/var/folders/qk/cm3h5rzs50gbl16m_c2l1cdw0000gn/T/digital-matnog-next/types/**/*.ts",
+    "/var/folders/qk/cm3h5rzs50gbl16m_c2l1cdw0000gn/T/digital-matnog-next/dev/types/**/*.ts",
+    "/var/folders/qk/cm3h5rzs50gbl16m_c2l1cdw0000gn/T/digital-matnog-next-development/types/**/*.ts",
+    "/var/folders/qk/cm3h5rzs50gbl16m_c2l1cdw0000gn/T/digital-matnog-next-development/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/._*"
+  ]
+}
