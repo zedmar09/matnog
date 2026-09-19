@@ -13,7 +13,6 @@ import { ContentPanel } from "@/shared/components/content-panel";
 import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { FormField } from "@/shared/components/form-field";
 import { FormSection } from "@/shared/components/form-section";
-import { NoticePanel } from "@/shared/components/notice-panel";
 import { PermissionState } from "@/shared/components/permission-state";
 import { StatusBadge } from "@/shared/components/status-badge";
 import { Button } from "@/shared/components/ui/button";
@@ -35,21 +34,9 @@ import { documentRoutingRepository } from "../services/document-foundation";
 
 const ROUTE_OFFICES = [MAYORS_OFFICE, TOURISM_OFFICE, ENGINEERING_OFFICE, HEALTH_OFFICE, BARANGAY_OFFICE, LEGAL_OFFICE];
 
-const SAMPLE_FILES = ["sample-incoming-letter.pdf", "sample-endorsement-packet.pdf", "sample-clearance-request.pdf"];
+const DOCUMENT_FILES = ["incoming-correspondence.pdf", "endorsement-packet.pdf", "clearance-request.pdf"];
 
 const MODULES = Array.from({ length: 17 }, (_, index) => `M${String(index + 1).padStart(2, "0")}`);
-
-const SAMPLE_VALUES: DocumentRegistrationValues = {
-  direction: "incoming",
-  documentType: "Inter-office memorandum",
-  sourceModule: "M11",
-  sourceRecordId: "DEMO-SVC-011",
-  subject: "Sample request for coordinated office review",
-  classification: "internal",
-  filename: SAMPLE_FILES[0],
-  attachmentNote: "Initial readable sample attachment",
-  routeOfficeId: MAYORS_OFFICE.id,
-};
 
 export function DocumentRegistrationView() {
   const router = useRouter();
@@ -82,7 +69,7 @@ export function DocumentRegistrationView() {
     return (
       <PermissionState
         title="Document registration is unavailable to this role"
-        description="Only the municipal records role can create a new document record in this demonstration."
+        description="Only municipal records staff can create a new document record."
         action={
           <Button asChild variant="outline">
             <Link href="/ops/documents">Return to document register</Link>
@@ -129,13 +116,9 @@ export function DocumentRegistrationView() {
             Document register
           </Link>
           <h1>Register a document</h1>
-          <p>Create metadata, attach a bundled sample label, and assign the first receiving office.</p>
+          <p>Record the metadata, attach the initial file, and assign the first receiving office.</p>
         </div>
       </div>
-      <NoticePanel className="mb-6">
-        This creates an in-memory demo record. The selected PDF is a filename and preview label only; no file is read,
-        uploaded, transmitted, or stored.
-      </NoticePanel>
       <ErrorSummary errors={errors} />
 
       <div className="document-registration-layout">
@@ -171,7 +154,6 @@ export function DocumentRegistrationView() {
                 id="sourceRecordId"
                 label="Source record reference"
                 error={fieldErrors.sourceRecordId?.message}
-                hint="Use a DEMO reference."
               >
                 {(field) => <Input {...field} {...register("sourceRecordId")} />}
               </FormField>
@@ -195,14 +177,14 @@ export function DocumentRegistrationView() {
             </FormSection>
 
             <FormSection
-              title="Sample attachment and first route"
-              description="The sample attachment starts at revision one. Replacement always creates another revision."
+              title="Attachment and first route"
+              description="The initial attachment starts at revision one. A replacement creates a new revision."
             >
-              <FormField id="filename" label="Sample attachment" error={fieldErrors.filename?.message}>
+              <FormField id="filename" label="Document file" error={fieldErrors.filename?.message}>
                 {(field) => (
                   <NativeSelect {...field} {...register("filename")}>
-                    <option value="">Choose a bundled sample PDF</option>
-                    {SAMPLE_FILES.map((filename) => (
+                    <option value="">Choose a PDF document</option>
+                    {DOCUMENT_FILES.map((filename) => (
                       <option key={filename} value={filename}>
                         {filename}
                       </option>
@@ -227,8 +209,8 @@ export function DocumentRegistrationView() {
             </FormSection>
 
             <div className="registry-actions">
-              <Button type="button" variant="outline" onClick={() => reset(SAMPLE_VALUES)}>
-                Use sample values
+              <Button type="button" variant="outline" onClick={() => reset()}>
+                Clear form
               </Button>
               <Button type="submit" disabled={saving}>
                 <FilePlus2 />
@@ -254,7 +236,7 @@ export function DocumentRegistrationView() {
             </div>
             <div>
               <dt>Attachment</dt>
-              <dd>{values.filename || "No sample selected"}</dd>
+              <dd>{values.filename || "No file selected"}</dd>
             </div>
             <div>
               <dt>First route</dt>

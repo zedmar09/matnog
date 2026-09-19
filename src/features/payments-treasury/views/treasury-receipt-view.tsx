@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 
-import { ArrowLeft, ReceiptText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ReceiptText } from "lucide-react";
 
 import { ContentPanel } from "@/shared/components/content-panel";
 import { EmptyState } from "@/shared/components/empty-state";
-import { NoticePanel } from "@/shared/components/notice-panel";
 import { PermissionState } from "@/shared/components/permission-state";
 import { Timeline, type TimelineStep } from "@/shared/components/timeline";
 import { Button } from "@/shared/components/ui/button";
@@ -15,15 +14,15 @@ import { useWorkspaceSession } from "@/shared/providers/workspace-session-provid
 
 import { MoneyStatusBadge } from "../components/money-status-badge";
 import { paymentLedgerRepository } from "../services/payment-ledger";
-import { formatPhp, PAYMENT_CHANNEL_LABELS } from "../services/payment-presentation";
+import { displayFinancialReference, formatPhp, PAYMENT_CHANNEL_LABELS } from "../services/payment-presentation";
 
 export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
   const { role } = useWorkspaceSession();
   if (role !== "municipal") {
     return (
       <PermissionState
-        title="Treasury receipt history requires the municipal demo role"
-        description="Municipality-wide collection history is outside the selected role projection."
+        title="Treasury receipt history requires municipal access"
+        description="Municipality-wide receipt records are available to authorized treasury staff."
       />
     );
   }
@@ -61,40 +60,44 @@ export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
   );
   const steps: TimelineStep[] = [
     {
-      title: `Assessment ${assessment.envelope.reference}`,
+      title: `Assessment ${displayFinancialReference(assessment.envelope.reference)}`,
       detail: `${assessment.serviceModule} · ${formatPhp(assessment.total.minorUnits)} · rule ${assessment.ruleVersion}`,
       complete: true,
     },
     {
-      title: attempt ? `Attempt ${attempt.envelope.id}` : "Payment attempt",
+      title: attempt ? `Attempt ${displayFinancialReference(attempt.envelope.id)}` : "Payment attempt",
       detail: attempt
         ? `${PAYMENT_CHANNEL_LABELS[attempt.channel]} · ${attempt.status.replaceAll("-", " ")}`
         : "No linked payment attempt is present.",
       complete: Boolean(attempt),
     },
     {
-      title: acknowledgment ? `Provider acknowledgment ${acknowledgment.envelope.id}` : "Provider acknowledgment",
+      title: acknowledgment
+        ? `Provider acknowledgment ${displayFinancialReference(acknowledgment.envelope.id)}`
+        : "Provider acknowledgment",
       detail: acknowledgment
         ? `${acknowledgment.providerLabel} · ${acknowledgment.message}`
         : "No provider acknowledgment is linked. It is never replaced by the government receipt.",
       complete: Boolean(acknowledgment),
     },
     {
-      title: collection ? `Confirmed collection ${collection.envelope.id}` : "Confirmed collection",
+      title: collection
+        ? `Confirmed collection ${displayFinancialReference(collection.envelope.id)}`
+        : "Confirmed collection",
       detail: collection
         ? `${formatPhp(collection.grossAmount.minorUnits)} · event ${collection.confirmationEventId}`
         : "No linked collection is present.",
       complete: Boolean(collection),
     },
     {
-      title: `Government receipt ${receipt.receiptNumber}`,
-      detail: `${receipt.watermark} · ${receipt.status}`,
+      title: `Government receipt ${displayFinancialReference(receipt.receiptNumber)}`,
+      detail: receipt.status,
       complete: true,
     },
     {
-      title: settlement ? `Settlement ${settlement.envelope.id}` : "Treasury settlement",
+      title: settlement ? `Settlement ${displayFinancialReference(settlement.envelope.id)}` : "Treasury settlement",
       detail: settlement
-        ? `${settlement.status.replaceAll("-", " ")} · bank reference ${settlement.sampleBankReference ?? "not recorded"}`
+        ? `${settlement.status.replaceAll("-", " ")} · bank reference ${displayFinancialReference(settlement.sampleBankReference ?? "not recorded")}`
         : "No settlement is linked; the collection and receipt remain separate records.",
       complete: Boolean(settlement),
     },
@@ -104,9 +107,8 @@ export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
     <>
       <div className="ops-topline">
         <div>
-          <span className="eyebrow">M06 · Treasury receipt history</span>
-          <h1>Sample Treasury receipt</h1>
-          <p>Inspect the receipt and every linked financial record without treating one as another.</p>
+          <h1>Treasury receipt</h1>
+          <p>Review the receipt and its linked assessment, collection, and settlement records.</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/ops/treasury/collections">
@@ -114,19 +116,15 @@ export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
           </Link>
         </Button>
       </div>
-      <NoticePanel className="mb-6" icon={<ShieldCheck size={18} />}>
-        This local preview is not an official receipt and moves no money. Provider acknowledgment, confirmed collection,
-        government receipt and settlement remain separate records.
-      </NoticePanel>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
         <ContentPanel as="article">
-          <div className="rounded-lg border-2 border-destructive/35 border-dashed bg-destructive/5 p-4 text-center font-bold text-destructive">
+          <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-center font-semibold text-primary">
             {receipt.watermark}
           </div>
           <div className="mt-6 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <span className="eyebrow">Municipality of Matnog · UI demo</span>
-              <h2>{receipt.receiptNumber}</h2>
+              <span className="eyebrow">Municipality of Matnog</span>
+              <h2>{displayFinancialReference(receipt.receiptNumber)}</h2>
             </div>
             <MoneyStatusBadge state={{ kind: "government-receipt", status: receipt.status }} />
           </div>
@@ -149,16 +147,15 @@ export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
             </div>
             <div>
               <dt className="text-muted-foreground text-xs">Assessment</dt>
-              <dd>{assessment.envelope.reference}</dd>
+              <dd>{displayFinancialReference(assessment.envelope.reference)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground text-xs">Collection</dt>
-              <dd>{collection?.envelope.reference ?? receipt.collectionId}</dd>
+              <dd>{displayFinancialReference(collection?.envelope.reference ?? receipt.collectionId)}</dd>
             </div>
           </dl>
           <p className="mt-6 border-t pt-5 text-muted-foreground text-sm">
-            Issued by {receipt.issuedBy ?? "Sample cashier"}. No document is downloaded or shared outside this local
-            prototype.
+            Issued by {receipt.issuedBy ?? "Municipal Treasury cashier"}.
           </p>
         </ContentPanel>
 
@@ -174,8 +171,8 @@ export function TreasuryReceiptView({ receiptId }: { receiptId: string }) {
               <h3 className="text-base">Linked adjustments</h3>
               {record.adjustments.map((adjustment) => (
                 <p key={adjustment.envelope.id} className="mt-2 text-sm">
-                  <strong>{adjustment.envelope.id}</strong> · {adjustment.type} · {adjustment.status} ·{" "}
-                  {adjustment.reason}
+                  <strong>{displayFinancialReference(adjustment.envelope.id)}</strong> · {adjustment.type} ·{" "}
+                  {adjustment.status} · {adjustment.reason}
                 </p>
               ))}
             </div>

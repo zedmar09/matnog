@@ -6,8 +6,8 @@ export const metadata = { title: "Register document · Staff workspace" };
 export default function Page() {
   return (
     <DocumentScenarioBoundary
-      emptyTitle="No sample registration workspace"
-      emptyDescription="Restore the normal sample state to register a document."
+      emptyTitle="Document registration unavailable"
+      emptyDescription="Document registration is not available in the current workspace state."
     >
       <DocumentRegistrationView />
     </DocumentScenarioBoundary>

@@ -72,8 +72,52 @@ export type TourismOperator = {
   name: string;
   businessPermit: string;
   status: "eligible" | "attention";
-  crew: { name: string; role: string; credentialStatus: "valid" | "expiring" }[];
-  vessels: { id: string; name: string; capacity: number; documentStatus: "valid" | "expired" }[];
+  contactPerson: string;
+  contactNumber: string;
+  email: string;
+  address: string;
+  accreditationNumber: string;
+  accreditationValidUntil: string;
+  updatedAt: string;
+  crew: TourismCrewMember[];
+  vessels: TourismVessel[];
+};
+
+export type TourismCrewMember = {
+  id: string;
+  name: string;
+  role: string;
+  licenseNumber: string;
+  credentialValidUntil: string;
+  credentialStatus: "valid" | "expiring" | "expired";
+};
+
+export type TourismVessel = {
+  id: string;
+  name: string;
+  registrationNumber: string;
+  capacity: number;
+  documentValidUntil: string;
+  documentStatus: "valid" | "expiring" | "expired";
+};
+
+export type TourismAdvisoryStatus = "Draft" | "Active" | "Resolved" | "Cancelled";
+export type TourismAdvisorySeverity = "Information" | "Caution" | "Restricted" | "Closed";
+
+export type TourismAdvisory = {
+  id: string;
+  title: string;
+  advisoryType: "Weather" | "Sea condition" | "Port operation" | "Destination" | "Safety";
+  severity: TourismAdvisorySeverity;
+  status: TourismAdvisoryStatus;
+  issuingAuthority: string;
+  effectiveFrom: string;
+  effectiveUntil: string;
+  affectedDestinations: string[];
+  affectedOperators: string[];
+  details: string;
+  instructions: string;
+  updatedAt: string;
 };
 export type TourismPreview =
   | "normal"

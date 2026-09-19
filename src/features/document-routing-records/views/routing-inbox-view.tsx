@@ -1,147 +1,198 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import Link from "next/link";
 
-import { ArrowRight, Clock3, Inbox, ListChecks, UserRoundCog } from "lucide-react";
+import { ArrowRight, Inbox, SearchX } from "lucide-react";
 
-import { ContentPanel } from "@/shared/components/content-panel";
+import { DataTable, type DataTableColumn } from "@/shared/components/data-table";
 import { EmptyState } from "@/shared/components/empty-state";
-import { NoticePanel } from "@/shared/components/notice-panel";
+import { OpsFilter, OpsSearch } from "@/shared/components/ops-filter";
 import { PermissionState } from "@/shared/components/permission-state";
-import { StatusBadge } from "@/shared/components/status-badge";
+import { StatusBadge, type StatusTone } from "@/shared/components/status-badge";
 import { Button } from "@/shared/components/ui/button";
 import { formatDemoDateTime } from "@/shared/data/demo-clock";
 import { useWorkspaceSession } from "@/shared/providers/workspace-session-provider";
 
 import { listDocumentTasks, readDocumentFoundation, taskDueState } from "../services/document-foundation";
+import type { RouteTask } from "../types/document-routing";
 
-type InboxFilter = "all" | "open" | "overdue" | "delegated";
+type InboxRow = { task: RouteTask; reference: string; subject: string };
 
-const FILTERS: { id: InboxFilter; label: string }[] = [
-  { id: "all", label: "All assigned" },
-  { id: "open", label: "Open" },
-  { id: "overdue", label: "Overdue" },
-  { id: "delegated", label: "Delegated" },
-];
+const tone = (task: RouteTask): StatusTone => {
+  if (["approved", "endorsed", "released"].includes(task.state)) return "success";
+  if (task.state === "returned") return "destructive";
+  if (taskDueState(task) === "overdue") return "warning";
+  return task.state === "pending-acknowledgment" ? "pending" : "neutral";
+};
 
 export function RoutingInboxView() {
   const { role } = useWorkspaceSession();
-  const [filter, setFilter] = useState<InboxFilter>("all");
-  const tasks = listDocumentTasks(role);
-  if (role !== "municipal") {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [due, setDue] = useState("");
+
+  const records = useMemo<InboxRow[]>(
+    () =>
+      listDocumentTasks(role).map((task) => {
+        const document = readDocumentFoundation(role, task.documentId);
+        return {
+          task,
+          reference: document?.document.envelope.reference ?? task.documentId,
+          subject: document?.document.subject ?? "Document unavailable",
+        };
+      }),
+    [role],
+  );
+
+  if (role !== "municipal")
     return (
       <PermissionState
-        title="No routing inbox for this demo role"
-        description="Choose Municipal staff to review the complete S11 routing fixture set."
+        title="Routing inbox unavailable"
+        description="Routing task management is assigned to municipal staff."
       />
     );
-  }
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === "overdue") return taskDueState(task) === "overdue";
-    if (filter === "delegated") return !!task.delegationId;
-    if (filter === "open") return !["approved", "endorsed", "released", "returned"].includes(task.state);
-    return true;
+  const query = search.trim().toLocaleLowerCase();
+  const rows = records.filter((row) => {
+    const haystack =
+      `${row.task.id} ${row.task.title} ${row.reference} ${row.subject} ${row.task.office.label} ${row.task.assigneePersona}`.toLocaleLowerCase();
+    return (
+      (!query || haystack.includes(query)) &&
+      (!status || row.task.state === status) &&
+      (!due || taskDueState(row.task) === due)
+    );
   });
-  const overdueCount = tasks.filter((task) => taskDueState(task) === "overdue").length;
-  const openCount = tasks.filter(
-    (task) => !["approved", "endorsed", "released", "returned"].includes(task.state),
-  ).length;
-  const delegatedCount = tasks.filter((task) => task.delegationId).length;
+  const filtering = Boolean(search || status || due);
+
+  const columns: DataTableColumn<InboxRow>[] = [
+    {
+      key: "task",
+      header: "Task and document",
+      className: "ops-wide-cell",
+      sortValue: (row) => row.task.title,
+      cell: (row) => (
+        <>
+          <strong>{row.task.title}</strong>
+          <small>
+            {row.task.id} · Stage {row.task.sequence}
+          </small>
+          <Link className="registry-member-link mt-2" href={`/ops/documents/${row.task.documentId}`}>
+            {row.reference} · {row.subject}
+          </Link>
+        </>
+      ),
+    },
+    {
+      key: "office",
+      header: "Assignment",
+      className: "ops-wide-cell",
+      sortValue: (row) => row.task.office.label,
+      cell: (row) => (
+        <>
+          <strong>{row.task.office.label}</strong>
+          <small>{row.task.assigneePersona}</small>
+        </>
+      ),
+    },
+    {
+      key: "due",
+      header: "Due and status",
+      sortValue: (row) => row.task.dueAt,
+      cell: (row) => (
+        <>
+          <strong>{formatDemoDateTime(row.task.dueAt)}</strong>
+          {taskDueState(row.task) === "overdue" && <small className="text-destructive">Overdue</small>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <StatusBadge tone={tone(row.task)}>{row.task.state.replaceAll("-", " ")}</StatusBadge>
+            {row.task.delegationId && <StatusBadge tone="warning">Delegated</StatusBadge>}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "action",
+      header: "Action",
+      headerHidden: true,
+      cell: (row) => (
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/ops/documents/${row.task.documentId}`}>
+            Open task <ArrowRight />
+          </Link>
+        </Button>
+      ),
+    },
+  ];
+
+  function resetFilters() {
+    setSearch("");
+    setStatus("");
+    setDue("");
+  }
 
   return (
     <>
       <div className="ops-topline">
         <div>
-          <span className="eyebrow">M05 · Document routing</span>
           <h1>Routing inbox</h1>
-          <p>Review assigned office tasks without treating the task as the document file or its physical custody.</p>
+          <p>Review assigned document tasks, receiving offices, due dates, and routing decisions.</p>
         </div>
       </div>
-      <NoticePanel className="mb-6">
-        Due states use the fixed demo clock. Open a task to acknowledge it, record a return or endorsement, or assign
-        another stage using local sample data.
-      </NoticePanel>
-
-      <section className="document-inbox-summary" aria-labelledby="routing-summary-title">
-        <h2 id="routing-summary-title" className="sr-only">
-          Routing task summary
-        </h2>
-        <ContentPanel as="section">
-          <ListChecks />
-          <div>
-            <small>Open work</small>
-            <strong>{openCount}</strong>
-          </div>
-        </ContentPanel>
-        <ContentPanel as="section">
-          <Clock3 />
-          <div>
-            <small>Overdue</small>
-            <strong>{overdueCount}</strong>
-          </div>
-        </ContentPanel>
-        <ContentPanel as="section">
-          <UserRoundCog />
-          <div>
-            <small>Delegated</small>
-            <strong>{delegatedCount}</strong>
-          </div>
-        </ContentPanel>
-      </section>
-
-      <fieldset className="document-inbox-filters">
-        <legend className="sr-only">Filter routing tasks</legend>
-        {FILTERS.map((item) => (
-          <Button
-            key={item.id}
-            type="button"
-            size="sm"
-            variant={filter === item.id ? "default" : "outline"}
-            aria-pressed={filter === item.id}
-            onClick={() => setFilter(item.id)}
-          >
-            {item.label}
-          </Button>
-        ))}
-      </fieldset>
-
-      {filteredTasks.length ? (
-        <div className="document-inbox-list">
-          {filteredTasks.map((task) => (
-            <ContentPanel as="article" key={task.id}>
-              <div>
-                <small>
-                  {task.id} · Stage {task.sequence}
-                </small>
-                <h2>{task.title}</h2>
-                <p>{readDocumentFoundation(role, task.documentId)?.document.subject ?? "Document unavailable"}</p>
-                <p className="small-note">
-                  {task.office.label} · {task.assigneePersona} · Due {formatDemoDateTime(task.dueAt)}
-                </p>
-              </div>
-              <div className="document-route-badges">
-                {taskDueState(task) === "overdue" && <StatusBadge tone="warning">overdue</StatusBadge>}
-                {task.delegationId && <StatusBadge tone="destructive">delegation check</StatusBadge>}
-                <StatusBadge tone={task.state === "pending-acknowledgment" ? "pending" : "neutral"}>
-                  {task.state.replaceAll("-", " ")}
-                </StatusBadge>
-              </div>
-              <Button asChild variant="outline">
-                <Link href={`/ops/documents/${task.documentId}`}>
-                  Open task <ArrowRight />
-                </Link>
-              </Button>
-            </ContentPanel>
-          ))}
-        </div>
+      <div className="ops-controls">
+        <OpsSearch value={search} onChange={setSearch} placeholder="Task, document, office, or assignee…" />
+        <OpsFilter
+          label="Status"
+          value={status}
+          onChange={setStatus}
+          anyLabel="Any status"
+          options={[
+            "pending-acknowledgment",
+            "received",
+            "in-review",
+            "returned",
+            "endorsed",
+            "approved",
+            "released",
+          ].map((value) => ({
+            value,
+            label: value.replaceAll("-", " ").replace(/^./, (letter) => letter.toUpperCase()),
+          }))}
+        />
+        <OpsFilter
+          label="Due state"
+          value={due}
+          onChange={setDue}
+          anyLabel="Any due state"
+          options={[
+            { value: "open", label: "Open" },
+            { value: "overdue", label: "Overdue" },
+            { value: "complete", label: "Complete" },
+          ]}
+        />
+      </div>
+      {rows.length ? (
+        <DataTable
+          columns={columns}
+          rows={rows}
+          getRowKey={(row) => row.task.id}
+          initialSort={{ key: "due", direction: "asc" }}
+          summary={`${rows.length} routing ${rows.length === 1 ? "task" : "tasks"}`}
+        />
       ) : (
         <EmptyState
-          icon={Inbox}
-          title={tasks.length ? "No tasks match this filter" : "Inbox is clear"}
-          description={tasks.length ? "Choose another task filter." : "No document tasks are assigned in this sample."}
+          icon={filtering ? SearchX : Inbox}
+          title={filtering ? "No tasks match your filters." : "The routing inbox is clear."}
+          description={
+            filtering ? "Adjust the search or clear the filters." : "Assigned routing tasks will appear here."
+          }
+          action={
+            filtering ? (
+              <Button variant="outline" onClick={resetFilters}>
+                Reset filters
+              </Button>
+            ) : undefined
+          }
         />
       )}
     </>

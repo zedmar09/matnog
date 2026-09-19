@@ -1,4 +1,5 @@
-import { TourismOperationsWorkspaceView } from "@/features/tourism-maritime-operations/views/tourism-workspace-view";
+import { AdvisoryListView } from "@/features/tourism-maritime-operations/views/advisory-list-view";
+
 export default function Page() {
-  return <TourismOperationsWorkspaceView mode="advisories" />;
+  return <AdvisoryListView />;
 }

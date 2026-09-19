@@ -33,7 +33,7 @@ export function DocumentVersionPreview({
     <ContentPanel as="section" className="document-preview-panel">
       <div className="document-preview-heading">
         <SectionHeading
-          eyebrow="Metadata-only sample"
+          eyebrow="Retained revision"
           title="Document preview"
           description="Choose any retained revision without changing the current routed file."
         />
@@ -52,7 +52,7 @@ export function DocumentVersionPreview({
           </NativeSelect>
         </label>
       </div>
-      <section className="document-preview-sheet" aria-label={`Sample preview for ${selected.filename}`}>
+      <section className="document-preview-sheet" aria-label={`Preview for ${selected.filename}`}>
         <div className="document-preview-sheet-header">
           <span className="document-file-icon">
             <FileText />
@@ -68,14 +68,14 @@ export function DocumentVersionPreview({
         </div>
         <div className="document-preview-placeholder">
           <Eye />
-          <strong>Sample PDF preview</strong>
+          <strong>PDF document preview</strong>
           <p>{selected.note}</p>
-          <small>No file bytes are loaded. This panel renders version metadata only.</small>
+          <small>Document contents are represented by the selected revision metadata.</small>
         </div>
       </section>
       {record.document.classification === "restricted" && (
         <NoticePanel icon={<LockKeyhole />} className="mt-4">
-          Restricted sample metadata is visible only inside the municipal projection.
+          Restricted document metadata is visible only to authorized municipal staff.
         </NoticePanel>
       )}
     </ContentPanel>

@@ -7,8 +7,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   return (
     <DocumentScenarioBoundary
-      emptyTitle="Document unavailable in this sample state"
-      emptyDescription="The selected empty state contains no document detail."
+      emptyTitle="Document unavailable"
+      emptyDescription="The requested document record is not available."
     >
       <DocumentDetailView documentId={id} />
     </DocumentScenarioBoundary>

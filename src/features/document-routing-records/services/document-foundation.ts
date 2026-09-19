@@ -5,6 +5,7 @@ import type { WorkspaceRole } from "@/shared/providers/workspace-session-provide
 import { DOCUMENT_ROUTING_FIXTURES } from "../data/document-foundation-fixtures";
 import type {
   DocumentAudience,
+  DocumentMetadataUpdateInput,
   DocumentRegistrationInput,
   DocumentWorkspaceRecord,
   OfficeRef,
@@ -24,6 +25,11 @@ export type DocumentSummary = {
   fileRevision: number;
   custodyLabel: string;
   archiveHold: boolean;
+  archiveState: string;
+  status: string;
+  direction: string;
+  source: string;
+  updatedAt: string;
 };
 
 type TaskOutcome = "approved" | "endorsed";
@@ -68,8 +74,8 @@ export class DocumentRoutingRepository {
     const record = this.#records.find(
       (item) => item.document.envelope.id === id || item.document.envelope.reference === id,
     );
-    if (!record) return empty("The sample document was not found.");
-    if (!isVisible(record, role)) return denied("This document is outside the selected demo role.");
+    if (!record) return empty("The document was not found.");
+    if (!isVisible(record, role)) return denied("This document is outside the assigned role.");
     return ok(structuredClone(record));
   }
 
@@ -94,7 +100,7 @@ export class DocumentRoutingRepository {
         ? [{ id: "assignment-note", message: "Explain the assignment in at least eight characters." }]
         : []),
       ...(!Number.isFinite(Date.parse(input.dueAt)) || Date.parse(input.dueAt) <= demoClock.now().getTime()
-        ? [{ id: "due-at", message: "Choose a due date after the fixed demo time." }]
+        ? [{ id: "due-at", message: "Choose a future due date and time." }]
         : []),
     ];
     if (errors.length) return invalid(errors);
@@ -175,10 +181,10 @@ export class DocumentRoutingRepository {
         ? [{ id: "sourceRecordId", message: "Enter the source record reference." }]
         : []),
       ...(!input.filename.toLowerCase().endsWith(".pdf")
-        ? [{ id: "filename", message: "Choose a bundled sample PDF." }]
+        ? [{ id: "filename", message: "Choose a PDF document." }]
         : []),
       ...(input.attachmentNote.trim().length < 8
-        ? [{ id: "attachmentNote", message: "Describe the sample attachment in at least eight characters." }]
+        ? [{ id: "attachmentNote", message: "Describe the attachment in at least eight characters." }]
         : []),
     ];
     if (errors.length) return invalid(errors);
@@ -191,11 +197,11 @@ export class DocumentRoutingRepository {
         0,
         ...this.#records.map((record) => Number(record.document.envelope.reference.match(/(\d+)$/)?.[1] ?? 0)),
       ) + 1;
-    const documentId = `DEMO-DOC-${serial}`;
-    const routeId = `DEMO-ROUTE-${serial}`;
-    const custodyId = `DEMO-CUST-${serial}`;
-    const fileId = `DEMO-FILE-${serial}-V1`;
-    const taskId = `DEMO-TASK-${serial}-1`;
+    const documentId = `DOCREC-2026-${serial}`;
+    const routeId = `ROUTE-2026-${serial}`;
+    const custodyId = `CUST-2026-${serial}`;
+    const fileId = `FILE-2026-${serial}-V1`;
+    const taskId = `TASK-2026-${serial}-1`;
     const now = demoClock.nowIso();
     const record: DocumentWorkspaceRecord = {
       scenario: "digital-review",
@@ -205,7 +211,7 @@ export class DocumentRoutingRepository {
           reference: `DOC-2026-${String(referenceNumber).padStart(4, "0")}`,
           status: "routed",
           version: 1,
-          scope: { kind: "office", id: "DEMO-OFF-RECORDS", label: "Municipal Records Office" },
+          scope: { kind: "office", id: "OFF-RECORDS", label: "Municipal Records Office" },
           createdAt: now,
           updatedAt: now,
           source: "Sample data",
@@ -231,7 +237,7 @@ export class DocumentRoutingRepository {
           sizeBytes: 236000,
           state: "submitted",
           addedAt: now,
-          addedBy: "Records staff · demo persona",
+          addedBy: "Municipal Records Officer",
           note: input.attachmentNote.trim(),
         },
       ],
@@ -247,7 +253,7 @@ export class DocumentRoutingRepository {
           source: "Sample data",
         },
         documentId,
-        templateId: "DEMO-TPL-REGISTERED-DOCUMENT",
+        templateId: "TPL-REGISTERED-DOCUMENT",
         templateVersion: 1,
         currentStage: 1,
         taskIds: [taskId],
@@ -274,7 +280,7 @@ export class DocumentRoutingRepository {
           reference: custodyId,
           status: "digital-only",
           version: 1,
-          scope: { kind: "office", id: "DEMO-OFF-RECORDS", label: "Municipal Records Office" },
+          scope: { kind: "office", id: "OFF-RECORDS", label: "Municipal Records Office" },
           createdAt: now,
           updatedAt: now,
           source: "Sample data",
@@ -288,6 +294,87 @@ export class DocumentRoutingRepository {
     };
     this.#records.push(record);
     return ok(structuredClone(record));
+  }
+
+  updateDocument(
+    role: WorkspaceRole,
+    documentId: string,
+    input: DocumentMetadataUpdateInput,
+  ): RepositoryResult<DocumentWorkspaceRecord> {
+    if (role !== "municipal") return denied("Only municipal records staff can edit document metadata.");
+    const errors = [
+      ...(input.subject.trim().length < 8
+        ? [{ id: "subject", message: "Enter a subject of at least eight characters." }]
+        : []),
+      ...(input.documentType.trim().length < 3
+        ? [{ id: "documentType", message: "Enter a document type of at least three characters." }]
+        : []),
+      ...(!/^M(?:0[1-9]|1[0-7])$/.test(input.sourceModule)
+        ? [{ id: "sourceModule", message: "Select a source module from M01 to M17." }]
+        : []),
+      ...(input.sourceRecordId.trim().length < 5
+        ? [{ id: "sourceRecordId", message: "Enter the source record reference." }]
+        : []),
+    ];
+    if (errors.length) return invalid(errors);
+    const result = this.#mutable(role, documentId);
+    if (result.kind !== "success") return result;
+    const record = result.data;
+    if (["released", "archived"].includes(record.document.envelope.status)) {
+      return invalid([{ id: "document", message: "Restore or reopen this record before editing its metadata." }]);
+    }
+    record.document.subject = input.subject.trim();
+    record.document.documentType = input.documentType.trim();
+    record.document.direction = input.direction;
+    record.document.classification = input.classification;
+    record.document.sourceModule = input.sourceModule;
+    record.document.sourceRecordId = input.sourceRecordId.trim().toUpperCase();
+    const firstTask = [...record.tasks].sort((a, b) => a.sequence - b.sequence)[0];
+    if (firstTask && !COMPLETED_TASK_STATES.has(firstTask.state)) firstTask.office = input.routeOffice;
+    record.route.envelope = {
+      ...record.route.envelope,
+      scope: { kind: "office", id: input.routeOffice.id, label: input.routeOffice.label },
+      version: record.route.envelope.version + 1,
+      updatedAt: demoClock.nowIso(),
+    };
+    bump(record);
+    return ok(structuredClone(record));
+  }
+
+  deleteDocument(role: WorkspaceRole, documentId: string): RepositoryResult<{ id: string }> {
+    if (role !== "municipal") return denied("Only municipal records staff can delete document records.");
+    const result = this.#mutable(role, documentId);
+    if (result.kind !== "success") return result;
+    if (result.data.archive.hold) {
+      return invalid([{ id: "delete-document", message: "Clear the archive hold before deleting this record." }]);
+    }
+    this.#records = this.#records.filter((record) => record.document.envelope.id !== documentId);
+    return ok({ id: documentId });
+  }
+
+  archiveDocument(role: WorkspaceRole, documentId: string): RepositoryResult<DocumentWorkspaceRecord> {
+    if (role !== "municipal") return denied("Only municipal records staff can archive document records.");
+    const result = this.#mutable(role, documentId);
+    if (result.kind !== "success") return result;
+    const record = result.data;
+    if (record.archive.hold) {
+      return invalid([{ id: "archive-document", message: "Clear the archive hold before archiving this record." }]);
+    }
+    if (record.document.envelope.status !== "released") {
+      return invalid([{ id: "archive-document", message: "Only released documents can be archived." }]);
+    }
+    record.archive.state = "archived";
+    bump(record, "archived");
+    return ok(structuredClone(record));
+  }
+
+  restoreDocument(role: WorkspaceRole, documentId: string): RepositoryResult<DocumentWorkspaceRecord> {
+    if (role !== "municipal") return denied("Only municipal records staff can restore document records.");
+    const result = this.#mutable(role, documentId);
+    if (result.kind !== "success") return result;
+    result.data.archive.state = "eligible";
+    bump(result.data, "released");
+    return ok(structuredClone(result.data));
   }
 
   acceptHandover(
@@ -308,7 +395,7 @@ export class DocumentRoutingRepository {
       return denied("Only the intended receiving office can accept this handover.");
     }
     if (trackingReference !== undefined && trackingReference.trim().toUpperCase() !== custody.trackingReference) {
-      return invalid([{ id: "tracking-reference", message: "The sample tracking reference does not match." }]);
+      return invalid([{ id: "tracking-reference", message: "The tracking reference does not match." }]);
     }
     custody.currentHolder = custody.intendedReceiver;
     custody.state = "accepted";
@@ -372,19 +459,22 @@ export class DocumentRoutingRepository {
     const result = this.#mutable(role, documentId);
     if (result.kind !== "success") return result;
     if (!input.filename.toLowerCase().endsWith(".pdf")) {
-      return invalid([{ id: "file", message: "Choose a sample PDF file." }]);
+      return invalid([{ id: "file", message: "Choose a PDF document." }]);
     }
     if (input.note.trim().length < 8) {
       return invalid([{ id: "version-note", message: "Explain the replacement in at least eight characters." }]);
     }
     const record = result.data;
+    if (["released", "archived"].includes(record.document.envelope.status)) {
+      return invalid([{ id: "file", message: "Released or archived documents cannot receive another file revision." }]);
+    }
     for (const version of record.versions) {
       if (version.id === record.document.currentFileVersionId && version.state !== "approved")
         version.state = "superseded";
     }
     const revision = Math.max(...record.versions.map((version) => version.revision)) + 1;
     const version = {
-      id: `DEMO-FILE-${record.document.envelope.id.slice(-3)}-V${revision}`,
+      id: `FILE-2026-${record.document.envelope.id.slice(-3)}-V${revision}`,
       documentId: record.document.envelope.id,
       revision,
       filename: input.filename,
@@ -415,7 +505,7 @@ export class DocumentRoutingRepository {
     const task = result.data.tasks.find((item) => item.id === taskId);
     if (!task) return empty("The route task was not found.");
     if (task.delegationId && !this.canUseDelegation(result.data, task.delegationId, "review")) {
-      return denied("The sample delegation is expired or does not permit this action. Reassign the task.");
+      return denied("The delegation is expired or does not permit this action. Reassign the task.");
     }
     if (task.state === "pending-acknowledgment" || COMPLETED_TASK_STATES.has(task.state)) {
       return invalid([
@@ -425,7 +515,7 @@ export class DocumentRoutingRepository {
     task.state = "returned";
     task.completedAt = demoClock.nowIso();
     task.decisionNote = reason.trim();
-    task.lastActor = "Municipal reviewer · demo persona";
+    task.lastActor = "Municipal Reviewing Officer";
     bump(result.data, "returned");
     return ok(structuredClone(result.data));
   }
@@ -450,12 +540,12 @@ export class DocumentRoutingRepository {
       return invalid([{ id: "review-note", message: "Record an endorsement note of at least eight characters." }]);
     }
     if (task.delegationId && !this.canUseDelegation(record, task.delegationId, delegatedAction)) {
-      return denied("The sample delegation is expired or does not permit this action. Reassign the task.");
+      return denied("The delegation is expired or does not permit this action. Reassign the task.");
     }
     task.state = outcome;
     task.completedAt = demoClock.nowIso();
     task.decisionNote = note.trim() || undefined;
-    task.lastActor = "Municipal reviewer · demo persona";
+    task.lastActor = "Municipal Reviewing Officer";
     const complete = record.route.requiredTaskIds.every((requiredId) => {
       const required = record.tasks.find((item) => item.id === requiredId);
       return required && ["approved", "endorsed", "released"].includes(required.state);
@@ -486,7 +576,7 @@ export class DocumentRoutingRepository {
     if (result.kind !== "success") return result;
     const record = result.data;
     if (record.release || record.document.envelope.status === "released") {
-      return invalid([{ id: "release-version", message: "This sample document is already released." }]);
+      return invalid([{ id: "release-version", message: "This document is already released." }]);
     }
     if (record.route.envelope.status !== "complete") {
       return invalid([{ id: "release-version", message: "Complete every required route task before release." }]);
@@ -504,7 +594,7 @@ export class DocumentRoutingRepository {
       releasedAt: demoClock.nowIso(),
       releasedBy: actor,
       note: note.trim(),
-      sampleOutputReference: `SAMPLE-REL-${record.document.envelope.reference}`,
+      sampleOutputReference: `REL-${record.document.envelope.reference}`,
     };
     record.archive = { ...record.archive, state: "eligible" };
     bump(record, "released");
@@ -539,7 +629,7 @@ export class DocumentRoutingRepository {
       ...result.data.archive,
       hold,
       ...(hold
-        ? { holdReason: reason.trim(), holdPlacedAt: demoClock.nowIso(), holdPlacedBy: "Records role · demo persona" }
+        ? { holdReason: reason.trim(), holdPlacedAt: demoClock.nowIso(), holdPlacedBy: "Municipal Records Supervisor" }
         : { holdReason: undefined, holdPlacedAt: undefined, holdPlacedBy: undefined }),
     };
     bump(result.data);
@@ -548,8 +638,8 @@ export class DocumentRoutingRepository {
 
   #mutable(role: WorkspaceRole, id: string): RepositoryResult<DocumentWorkspaceRecord> {
     const record = this.#records.find((item) => item.document.envelope.id === id);
-    if (!record) return empty("The sample document was not found.");
-    if (!isVisible(record, role)) return denied("This document is outside the selected demo role.");
+    if (!record) return empty("The document was not found.");
+    if (!isVisible(record, role)) return denied("This document is outside the assigned role.");
     return ok(record);
   }
 }
@@ -557,22 +647,30 @@ export class DocumentRoutingRepository {
 export const documentRoutingRepository = new DocumentRoutingRepository();
 
 export function listDocumentFoundation(role: WorkspaceRole): DocumentSummary[] {
-  return documentRoutingRepository.list(role).map((record) => {
-    const currentVersion = record.versions.find((version) => version.id === record.document.currentFileVersionId);
-    const activeTask = record.tasks.find((task) => !["approved", "endorsed", "released"].includes(task.state));
-    return {
-      id: record.document.envelope.id,
-      reference: record.document.envelope.reference,
-      subject: record.document.subject,
-      type: record.document.documentType,
-      scenario: record.scenario,
-      classification: record.document.classification,
-      routeState: activeTask?.state ?? record.route.envelope.status,
-      fileRevision: currentVersion?.revision ?? 0,
-      custodyLabel: custodyLabel(record.custody),
-      archiveHold: record.archive.hold,
-    };
-  });
+  return documentRoutingRepository
+    .list(role)
+    .filter((record) => record.archive.state !== "archived")
+    .map((record) => {
+      const currentVersion = record.versions.find((version) => version.id === record.document.currentFileVersionId);
+      const activeTask = record.tasks.find((task) => !["approved", "endorsed", "released"].includes(task.state));
+      return {
+        id: record.document.envelope.id,
+        reference: record.document.envelope.reference,
+        subject: record.document.subject,
+        type: record.document.documentType,
+        scenario: record.scenario,
+        classification: record.document.classification,
+        routeState: activeTask?.state ?? record.route.envelope.status,
+        fileRevision: currentVersion?.revision ?? 0,
+        custodyLabel: custodyLabel(record.custody),
+        archiveHold: record.archive.hold,
+        archiveState: record.archive.state,
+        status: record.document.envelope.status,
+        direction: record.document.direction,
+        source: `${record.document.sourceModule} · ${record.document.sourceRecordId}`,
+        updatedAt: record.document.envelope.updatedAt,
+      };
+    });
 }
 
 export function readDocumentFoundation(role: WorkspaceRole, id: string): DocumentWorkspaceRecord | undefined {

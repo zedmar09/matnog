@@ -1,12 +1,9 @@
-import { BookOpenCheck } from "lucide-react";
-
 import { ContentPanel } from "@/shared/components/content-panel";
 import { DataTable, type DataTableColumn } from "@/shared/components/data-table";
-import { NoticePanel } from "@/shared/components/notice-panel";
 import { StatusBadge, type StatusTone } from "@/shared/components/status-badge";
 
 import { revenuePostingProjections } from "../services/payment-adapters";
-import { formatPhp } from "../services/payment-presentation";
+import { displayFinancialReference, formatPhp } from "../services/payment-presentation";
 import type { PaymentLedgerRecord, RevenuePostingReadiness, RevenuePostingSummary } from "../types/payment-treasury";
 
 const POSTING_TONES: Record<RevenuePostingReadiness, StatusTone> = {
@@ -25,7 +22,7 @@ const COLUMNS: DataTableColumn<RevenuePostingSummary>[] = [
       <>
         <strong>{row.serviceReference}</strong>
         <small>
-          {row.moduleId} · {row.collectionId}
+          {row.moduleId} · {displayFinancialReference(row.collectionId)}
         </small>
       </>
     ),
@@ -42,17 +39,17 @@ const COLUMNS: DataTableColumn<RevenuePostingSummary>[] = [
   },
   {
     key: "mapping",
-    header: "Sample mapping",
+    header: "Account mapping",
     cell: (row) => (
       <>
         <span>{row.mappingLabel}</span>
-        <small>{row.postingReference}</small>
+        <small>{displayFinancialReference(row.postingReference)}</small>
       </>
     ),
   },
   {
     key: "status",
-    header: "Posting preview",
+    header: "Posting status",
     cell: (row) => (
       <>
         <StatusBadge tone={POSTING_TONES[row.readiness]}>{row.readinessLabel}</StatusBadge>
@@ -70,19 +67,15 @@ export function RevenuePostingSummaryPanel({ records }: { records: readonly Paym
     <ContentPanel as="section" className="mt-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="eyebrow">M14 adapter · read-only projection</span>
-          <h2 className="mt-1">Revenue posting preview</h2>
-          <p className="muted mt-2">Confirmed M06 collections prepared for a later account-mapping review.</p>
+          <span className="eyebrow">Revenue posting</span>
+          <h2 className="mt-1">Posting readiness</h2>
+          <p className="muted mt-2">Confirmed collections awaiting account-mapping review.</p>
         </div>
         <StatusBadge tone={ready === rows.length ? "success" : "warning"}>
           {ready} of {rows.length} ready
         </StatusBadge>
       </div>
-      <NoticePanel className="my-5" icon={<BookOpenCheck size={18} />}>
-        This adapter creates no journal entry, chart-of-account code, cash release, or accounting approval. M14 remains
-        the owner of mapping and posting decisions.
-      </NoticePanel>
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="my-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border p-4">
           <span className="text-muted-foreground text-xs">Confirmed collection gross</span>
           <strong className="mt-1 block text-xl">{formatPhp(gross)}</strong>
@@ -100,7 +93,7 @@ export function RevenuePostingSummaryPanel({ records }: { records: readonly Paym
         columns={COLUMNS}
         rows={rows}
         getRowKey={(row) => row.postingReference}
-        summary={`${rows.length} local M14 posting preview rows; no accounting entries created`}
+        summary={`${rows.length} revenue posting ${rows.length === 1 ? "record" : "records"}`}
       />
     </ContentPanel>
   );

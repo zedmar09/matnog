@@ -23,10 +23,19 @@ export function phpInputValue(minorUnits: number): string {
 }
 
 export const PAYMENT_CHANNEL_LABELS: Record<PaymentChannel, string> = {
-  "mock-e-wallet": "Sample e-wallet",
-  "mock-bank": "Sample online bank",
-  cashier: "Cashier counter preview",
+  "mock-e-wallet": "GCash / e-wallet",
+  "mock-bank": "Online bank transfer",
+  cashier: "Cashier counter",
 };
+
+export function displayFinancialReference(reference: string): string {
+  return reference
+    .replace(/^DEMO-/, "")
+    .replace(/^SAMPLE-OR-/, "OR-")
+    .replace(/^SAMPLE-BANK-/, "BANK-")
+    .replace(/^SAMPLE-PROVIDER-/, "PAY-")
+    .replace(/^SAMPLE-CASHIER-/, "CASH-");
+}
 
 export const PAYMENT_SCENARIO_DETAILS: Record<PaymentLedgerScenario, { label: string; description: string }> = {
   "issued-assessment": {
@@ -51,7 +60,7 @@ export const PAYMENT_SCENARIO_DETAILS: Record<PaymentLedgerScenario, { label: st
   },
   overpayment: {
     label: "Overpayment awaiting allocation",
-    description: "The extra amount remains unallocated and is held from M14 mapping.",
+    description: "The extra amount remains unallocated and is held from account mapping.",
   },
   "partial-disallowed": {
     label: "Partial payment blocked",
@@ -59,7 +68,7 @@ export const PAYMENT_SCENARIO_DETAILS: Record<PaymentLedgerScenario, { label: st
   },
   chargeback: {
     label: "Chargeback and voided receipt",
-    description: "The collection stays in history while its chargeback and voided sample receipt remain visible.",
+    description: "The collection stays in history while its chargeback and voided receipt remain visible.",
   },
   "unmatched-deposit": {
     label: "Unmatched settlement",

@@ -10,7 +10,6 @@ import {
   Building2,
   ChartNoAxesCombined,
   ChevronRight,
-  CircleHelp,
   FileBadge2,
   FileStack,
   Globe,
@@ -189,34 +188,6 @@ function WorkspaceSidebar() {
             </SidebarGroup>
           );
         })}
-
-        <div className="ops-sidebar-label mt-7">Helpful links</div>
-        <SidebarMenu className="px-3">
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/preview/scenarios" onClick={() => setOpenMobile(false)}>
-                <Settings2 />
-                <span>Presenter scenarios</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/services" onClick={() => setOpenMobile(false)}>
-                <Globe />
-                <span>Public service directory</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/help" onClick={() => setOpenMobile(false)}>
-                <CircleHelp />
-                <span>Help &amp; information</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
       </SidebarContent>
     </Sidebar>
   );

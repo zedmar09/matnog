@@ -3,10 +3,13 @@
 import { useState } from "react";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { Archive, ArrowLeft, FileText, UserRoundCog } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, FileText, Pencil, Trash2, UserRoundCog } from "lucide-react";
 
+import { ConfirmationDialog } from "@/shared/components/confirmation-dialog";
 import { ContentPanel } from "@/shared/components/content-panel";
+import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { NoticePanel } from "@/shared/components/notice-panel";
 import { PermissionState } from "@/shared/components/permission-state";
 import { SectionHeading } from "@/shared/components/section-heading";
@@ -26,11 +29,16 @@ import type { DocumentWorkspaceRecord } from "../types/document-routing";
 
 export function DocumentDetailView({ documentId }: { documentId: string }) {
   const { role } = useWorkspaceSession();
+  const router = useRouter();
   const [recordOverride, setRecordOverride] = useState<{
     role: typeof role;
     record: DocumentWorkspaceRecord;
   }>();
   const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [notice, setNotice] = useState<string>();
+  const [errors, setErrors] = useState<FieldError[]>([]);
   const projectedRecord = readDocumentFoundation(role, documentId);
   const record =
     recordOverride?.role === role &&
@@ -42,7 +50,7 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
     return (
       <PermissionState
         title="Document record unavailable"
-        description="The reference does not exist in this sample or is outside the selected demo role."
+        description="The reference does not exist or is outside the selected role."
         action={
           <Button asChild variant="outline">
             <Link href="/ops/documents">Return to document register</Link>
@@ -55,7 +63,7 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
   const replaceFile = (values: FileReplacementValues) => {
     const result = documentRoutingRepository.replaceFile(role, documentId, {
       ...values,
-      actor: "Records staff · demo persona",
+      actor: "Municipal Records Officer",
     });
     if (result.kind === "success") {
       setSelectedVersionId(result.data.document.currentFileVersionId);
@@ -63,6 +71,7 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
     }
     return result;
   };
+  const canEdit = role === "municipal" && !["released", "archived"].includes(record.document.envelope.status);
 
   return (
     <>
@@ -76,17 +85,47 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
         </div>
         <div className="ops-topline-actions">
           <Button asChild variant="outline">
-            <Link href="/ops/documents/archive">
-              <Archive /> Archive preview
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
             <Link href="/ops/documents">
-              <ArrowLeft /> Document register
+              <ArrowLeft /> Back to register
             </Link>
           </Button>
+          {canEdit && (
+            <Button asChild>
+              <Link href={`/ops/documents/${record.document.envelope.id}/edit`}>
+                <Pencil />
+                Edit document
+              </Link>
+            </Button>
+          )}
+          {role === "municipal" &&
+            record.document.envelope.status === "released" &&
+            record.archive.state !== "archived" && (
+              <Button variant="outline" onClick={() => setConfirmArchive(true)}>
+                <Archive />
+                Archive
+              </Button>
+            )}
+          {role === "municipal" && record.archive.state === "archived" && (
+            <Button variant="outline" onClick={() => setConfirmArchive(true)}>
+              <ArchiveRestore />
+              Restore
+            </Button>
+          )}
+          {role === "municipal" && (
+            <Button variant="outline" className="text-destructive" onClick={() => setConfirmDelete(true)}>
+              <Trash2 />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
+
+      {notice && (
+        <div className="registry-save-notice mb-6" role="status">
+          {notice}
+        </div>
+      )}
+      <ErrorSummary errors={errors} title="This document record could not be changed" />
 
       <DocumentSummaryCards record={record} />
       {record.custody.mode === "physical" ? (
@@ -96,7 +135,7 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
         </NoticePanel>
       ) : (
         <NoticePanel className="mb-6">
-          This is a digital-only sample. Route responsibility is tracked without implying a physical custodian or
+          This is a digital-only record. Route responsibility is tracked without implying a physical custodian or
           handover.
         </NoticePanel>
       )}
@@ -108,7 +147,7 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
             <strong>Delegated review · {delegation.id}</strong>
             <p>
               {delegation.fromPersona} delegated to {delegation.toPersona} through{" "}
-              {formatDemoDateTime(delegation.validUntil)}. The fixed demo date is later, so delegated actions require
+              {formatDemoDateTime(delegation.validUntil)}. The delegation has expired, so delegated actions require
               reassignment.
             </p>
           </div>
@@ -129,13 +168,13 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
         </ContentPanel>
       )}
 
-      <div className={role === "municipal" ? "document-preview-workspace" : "is-read-only document-preview-workspace"}>
+      <div className={canEdit ? "document-preview-workspace" : "is-read-only document-preview-workspace"}>
         <DocumentVersionPreview
           record={record}
           selectedVersionId={selectedVersionId || record.document.currentFileVersionId}
           onVersionChange={setSelectedVersionId}
         />
-        {role === "municipal" && (
+        {canEdit && (
           <ContentPanel as="section">
             <DocumentReplacementForm onReplace={replaceFile} />
           </ContentPanel>
@@ -191,13 +230,70 @@ export function DocumentDetailView({ documentId }: { documentId: string }) {
         </ContentPanel>
       </div>
 
-      {role === "municipal" && (
+      {canEdit && (
         <RoutingWorkspace record={record} onUpdate={(updated) => setRecordOverride({ role, record: updated })} />
       )}
       <CustodyReleaseWorkspace
         record={record}
         role={role}
         onUpdate={(updated) => setRecordOverride({ role, record: updated })}
+      />
+      <ConfirmationDialog
+        open={confirmArchive}
+        onOpenChange={setConfirmArchive}
+        title={`${record.archive.state === "archived" ? "Restore" : "Archive"} ${record.document.envelope.reference}`}
+        description={
+          record.archive.state === "archived"
+            ? "This returns the released record to the active document register."
+            : "This moves the released document to the records archive."
+        }
+        confirmLabel={record.archive.state === "archived" ? "Restore document" : "Archive document"}
+        onConfirm={() => {
+          const result =
+            record.archive.state === "archived"
+              ? documentRoutingRepository.restoreDocument(role, record.document.envelope.id)
+              : documentRoutingRepository.archiveDocument(role, record.document.envelope.id);
+          if (result.kind === "success") {
+            setRecordOverride({ role, record: result.data });
+            setNotice(record.archive.state === "archived" ? "Document restored." : "Document archived.");
+            setErrors([]);
+          } else
+            setErrors(
+              result.kind === "invalid"
+                ? result.errors
+                : [
+                    {
+                      id: "archive-document",
+                      message:
+                        result.kind === "empty" ? (result.reason ?? "The record was not found.") : result.message,
+                    },
+                  ],
+            );
+        }}
+      />
+      <ConfirmationDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${record.document.envelope.reference}`}
+        description="This permanently removes the document metadata, file revisions, routing tasks, custody history, and release record."
+        confirmLabel="Delete document"
+        destructive
+        onConfirm={() => {
+          const result = documentRoutingRepository.deleteDocument(role, record.document.envelope.id);
+          if (result.kind === "success") router.replace("/ops/documents");
+          else
+            setErrors(
+              result.kind === "invalid"
+                ? result.errors
+                : [
+                    {
+                      id: "delete-document",
+                      message:
+                        result.kind === "empty" ? (result.reason ?? "The record was not found.") : result.message,
+                    },
+                  ],
+            );
+        }}
       />
     </>
   );

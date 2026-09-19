@@ -18,11 +18,7 @@ import type { RepositoryResult } from "@/shared/data/repository-result";
 import { type FileReplacementValues, fileReplacementSchema } from "../schemas/document-schema";
 import type { DocumentWorkspaceRecord } from "../types/document-routing";
 
-const REPLACEMENT_FILES = [
-  "sample-readable-replacement.pdf",
-  "sample-corrected-attachment.pdf",
-  "sample-signed-copy.pdf",
-];
+const REPLACEMENT_FILES = ["readable-replacement.pdf", "corrected-attachment.pdf", "signed-copy.pdf"];
 
 export function DocumentReplacementForm({
   onReplace,
@@ -53,13 +49,13 @@ export function DocumentReplacementForm({
       setErrors([
         {
           id: "filename",
-          message: result.kind === "denied" ? result.message : "The sample replacement could not be recorded.",
+          message: result.kind === "denied" ? result.message : "The replacement could not be recorded.",
         },
       ]);
       return;
     }
     const current = result.data.versions.find((version) => version.id === result.data.document.currentFileVersionId);
-    setNotice(`Revision ${current?.revision ?? result.data.versions.length} is now the routed sample file.`);
+    setNotice(`Revision ${current?.revision ?? result.data.versions.length} is now the routed file.`);
     reset();
   };
 
@@ -67,16 +63,16 @@ export function DocumentReplacementForm({
     <div className="document-replacement-form">
       <SectionHeading
         eyebrow="New immutable revision"
-        title="Replace sample attachment"
+        title="Replace attachment"
         description="The current non-approved revision becomes superseded. Approved history remains unchanged."
       />
       <ErrorSummary errors={errors} title="Replacement needs attention" />
       {notice && <NoticePanel className="mt-4">{notice}</NoticePanel>}
       <form onSubmit={handleSubmit(submit)} noValidate>
-        <FormField id="filename" label="Replacement sample" error={fieldErrors.filename?.message}>
+        <FormField id="filename" label="Replacement file" error={fieldErrors.filename?.message}>
           {(field) => (
             <NativeSelect {...field} {...register("filename")}>
-              <option value="">Choose a bundled sample PDF</option>
+              <option value="">Choose a PDF document</option>
               {REPLACEMENT_FILES.map((filename) => (
                 <option key={filename} value={filename}>
                   {filename}

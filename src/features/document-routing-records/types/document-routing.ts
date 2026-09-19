@@ -153,6 +153,16 @@ export type DocumentRegistrationInput = {
   routeOffice: OfficeRef;
 };
 
+export type DocumentMetadataUpdateInput = {
+  direction: DocumentDirection;
+  documentType: string;
+  sourceModule: string;
+  sourceRecordId: string;
+  subject: string;
+  classification: DocumentClassification;
+  routeOffice: OfficeRef;
+};
+
 export type RouteStagePlacement = "next-sequential" | "current-parallel";
 
 export type RouteStageAssignmentInput = {

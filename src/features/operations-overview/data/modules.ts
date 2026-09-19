@@ -80,9 +80,9 @@ export const MODULES: MunicipalModule[] = [
       "Boarding, return, and disruption scenarios",
     ],
     screens: [
-      { href: "/ops/tourism/trips", label: "Trips & manifests" },
-      { href: "/ops/tourism/operators", label: "Operators & vessels" },
-      { href: "/ops/tourism/advisories", label: "Maritime advisories" },
+      { href: "/ops/tourism/trips", label: "Trips" },
+      { href: "/ops/tourism/operators", label: "Operators" },
+      { href: "/ops/tourism/advisories", label: "Advisories" },
     ],
   },
   {
@@ -96,14 +96,13 @@ export const MODULES: MunicipalModule[] = [
     features: [
       "Document intake and office routing",
       "Acknowledgment, correction, and approval",
-      "Record history and release preview",
+      "Record history, release, and archiving",
     ],
     screens: [
-      { href: "/ops/documents", label: "Document register" },
-      { href: "/ops/documents/new", label: "Register a document" },
-      { href: "/ops/documents/archive", label: "Records archive" },
-      { href: "/ops/routing/inbox", label: "Routing inbox" },
-      { href: "/ops/routing/templates", label: "Routing templates" },
+      { href: "/ops/documents", label: "Register" },
+      { href: "/ops/documents/archive", label: "Archive" },
+      { href: "/ops/routing/inbox", label: "Inbox" },
+      { href: "/ops/routing/templates", label: "Templates" },
     ],
   },
   {
@@ -116,12 +115,15 @@ export const MODULES: MunicipalModule[] = [
     roles: ["municipal"],
     features: [
       "Assessment and exemption breakdowns",
-      "Simulated payment and receipt previews",
-      "Settlement and reconciliation scenarios",
+      "Cashier collection and receipt issuance",
+      "Settlement and reconciliation management",
     ],
     screens: [
+      { href: "/ops/treasury/assessments", label: "Assessments" },
       { href: "/ops/treasury/collections", label: "Collections" },
       { href: "/ops/treasury/reconciliation", label: "Reconciliation" },
+      { href: "/ops/treasury/adjustments", label: "Adjustments" },
+      { href: "/ops/treasury/postings", label: "Postings" },
     ],
   },
   {
@@ -212,8 +214,8 @@ export const MODULES: MunicipalModule[] = [
   },
   {
     id: "M11",
-    name: "Citizen service desk",
-    shortName: "Service Desk",
+    name: "Citizen support",
+    shortName: "Citizen Support",
     description: "Requests, appointments, and feedback follow-up.",
     group: "services",
     stage: "F5",
@@ -224,8 +226,12 @@ export const MODULES: MunicipalModule[] = [
       "Response, resolution, and feedback",
     ],
     screens: [
-      { href: "/ops/service-desk/inbox", label: "Service desk inbox" },
-      { href: "/ops/service-desk/queue", label: "Appointment queue" },
+      { href: "/ops/service-desk/requests", label: "Requests" },
+      { href: "/ops/service-desk/appointments", label: "Appointments" },
+      { href: "/ops/service-desk/queue", label: "Queue" },
+      { href: "/ops/service-desk/requests/new", label: "New request", hidden: true },
+      { href: "/ops/service-desk/appointments/new", label: "New appointment", hidden: true },
+      { href: "/ops/service-desk/queue/new", label: "Add walk-in", hidden: true },
     ],
   },
   {

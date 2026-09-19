@@ -19,8 +19,8 @@ import { useWorkspaceSession } from "@/shared/providers/workspace-session-provid
  */
 export function DocumentScenarioBoundary({
   children,
-  emptyTitle = "No sample document records",
-  emptyDescription = "This selectable state contains no document-routing records.",
+  emptyTitle = "No document records",
+  emptyDescription = "No document-routing records are available.",
 }: {
   children: ReactNode;
   emptyTitle?: string;
@@ -37,7 +37,9 @@ export function DocumentScenarioBoundary({
   }, [scenario, scenarioKey]);
 
   if (scenario === "slow" && resolvedSlowKey !== scenarioKey) {
-    return <LoadingState label="Loading sample document records" message="Simulating a slow local response…" />;
+    return (
+      <LoadingState label="Loading document records" message="Loading the latest routing and custody information…" />
+    );
   }
   if (scenario === "empty") {
     return (
@@ -45,15 +47,15 @@ export function DocumentScenarioBoundary({
         icon={FileX2}
         title={emptyTitle}
         description={emptyDescription}
-        action={<Button onClick={() => setScenario("normal")}>Restore sample records</Button>}
+        action={<Button onClick={() => setScenario("normal")}>Restore records</Button>}
       />
     );
   }
   if (scenario === "error") {
     return (
       <ErrorState
-        title="The sample document workspace could not load."
-        description="This is the selected connection-error preview. No network request was made."
+        title="The document workspace could not load."
+        description="The document records could not be retrieved. Try again."
         onRetry={() => setScenario("normal")}
       />
     );
@@ -61,11 +63,11 @@ export function DocumentScenarioBoundary({
   if (scenario === "denied") {
     return (
       <PermissionState
-        title="Document workspace unavailable in this preview state"
-        description="The selected permission-denied scenario withholds all document metadata and actions."
+        title="Document workspace unavailable"
+        description="This role cannot access document metadata or actions."
         action={
           <Button asChild variant="outline">
-            <Link href="/ops">Change preview state</Link>
+            <Link href="/ops">Return to workspace</Link>
           </Button>
         }
       />

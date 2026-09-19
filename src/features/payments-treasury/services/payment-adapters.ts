@@ -38,7 +38,7 @@ const SOURCE_MODULES: Record<
 function moduleId(record: PaymentLedgerRecord): PaymentSourceModuleId {
   const prefix = record.lifecycle.assessment.serviceModule.slice(0, 3);
   if (prefix === "M03" || prefix === "M04" || prefix === "M07") return prefix;
-  throw new Error(`Unsupported sample payment source module: ${prefix}`);
+  throw new Error(`Unsupported payment source module: ${prefix}`);
 }
 
 function paymentGateStatus(record: PaymentLedgerRecord): SourcePaymentGateStatus {
@@ -108,7 +108,7 @@ function readinessFor(record: PaymentLedgerRecord): {
     return {
       readiness: "held-adjustment",
       label: "Held for adjustment review",
-      reason: "The collection has a refund, reversal, or chargeback state that M14 must not post as ordinary revenue.",
+      reason: "The collection has a refund, reversal, or chargeback state and cannot be posted as ordinary revenue.",
     };
   }
   if (collection.unallocatedAmount.minorUnits > 0) {
@@ -129,8 +129,8 @@ function readinessFor(record: PaymentLedgerRecord): {
   }
   return {
     readiness: "ready-for-mapping",
-    label: "Ready for M14 mapping review",
-    reason: "The collection is allocated and its settlement is matched; M14 may preview account mapping.",
+    label: "Ready for account mapping",
+    reason: "The collection is allocated and its settlement is matched, so account mapping can proceed.",
   };
 }
 
@@ -142,7 +142,7 @@ export function revenuePostingProjection(record: PaymentLedgerRecord): RevenuePo
   const settlement = record.lifecycle.settlements.at(-1);
   const state = readinessFor(record);
   return {
-    postingReference: `DEMO-M14-${collection.envelope.id.replace("DEMO-PAY-", "")}`,
+    postingReference: `REV-MAP-2026-${collection.envelope.id.replace("DEMO-PAY-", "")}`,
     collectionId: collection.envelope.id,
     assessmentId: assessment.envelope.id,
     serviceReference: assessment.serviceReference,
@@ -156,10 +156,10 @@ export function revenuePostingProjection(record: PaymentLedgerRecord): RevenuePo
     readinessLabel: state.label,
     mappingLabel:
       assessment.payee.kind === "barangay"
-        ? "Sample barangay collection clearing"
+        ? "Barangay collection clearing"
         : assessment.payee.kind === "private-operator"
           ? "No municipal mapping"
-          : "Sample municipal service revenue",
+          : "Municipal service revenue",
     reason: state.reason,
   };
 }

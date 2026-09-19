@@ -21,24 +21,32 @@ const php = (minorUnits: number): PhpAmount => ({ currency: "PHP", minorUnits })
 export const MUNICIPAL_TREASURY_PAYEE: PayeeRef = {
   id: "DEMO-PAYEE-MUNICIPAL",
   kind: "municipal",
-  label: "Municipality of Matnog · Sample Treasury",
+  label: "Municipality of Matnog · Municipal Treasurer's Office",
 };
 export const BARANGAY_TREASURY_PAYEE: PayeeRef = {
   id: "DEMO-PAYEE-BARANGAY-A",
   kind: "barangay",
-  label: "Demo Barangay A · Sample Treasury",
+  label: "Barangay Poblacion · Barangay Treasurer's Office",
 };
 export const PRIVATE_OPERATOR_PAYEE: PayeeRef = {
   id: "DEMO-PAYEE-OPERATOR",
   kind: "private-operator",
-  label: "Demo Bay Operator · Private sample charge",
+  label: "Calintaan Island Tours and Services",
 };
 
-export const MEMBER_PAYER: PayerRef = { id: "DEMO-PER-001", kind: "person", label: "Mara Dela Cruz" };
+export const MEMBER_PAYER: PayerRef = { id: "DEMO-PER-001", kind: "person", label: "Maria Lourdes Dela Cruz" };
 export const BUSINESS_PAYER: PayerRef = {
   id: "DEMO-BIZ-001",
   kind: "business",
-  label: "Demo Bay Tours",
+  label: "Matnog Bay Tours and Transport Services",
+};
+const FISHERFOLK_PAYER: PayerRef = { id: "DEMO-PER-014", kind: "person", label: "Rolando F. Frilles" };
+const MARKET_VENDOR_PAYER: PayerRef = { id: "DEMO-PER-027", kind: "person", label: "Luzviminda G. Espinas" };
+const RESORT_PAYER: PayerRef = { id: "DEMO-BIZ-008", kind: "business", label: "Subic Beach Haven Resort" };
+const RETAIL_PAYER: PayerRef = {
+  id: "DEMO-BIZ-019",
+  kind: "business",
+  label: "Matnog Central General Merchandise",
 };
 
 type CollectionSeed = {
@@ -88,7 +96,7 @@ type ScenarioSeed = {
 
 function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
   const serial = String(seed.number).padStart(3, "0");
-  const day = String(8 + seed.number).padStart(2, "0");
+  const day = String(Math.min(15, seed.number)).padStart(2, "0");
   const at = `2026-09-${day}T08:00:00+08:00`;
   const assessmentId = `DEMO-ASM-${serial}`;
   const attemptId = `DEMO-ATT-${serial}`;
@@ -105,7 +113,7 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
   const collectionGross = seed.collection?.gross ?? requestedAmount;
   const eventId = seed.collection?.eventId ?? `DEMO-EVT-PAY-${serial}`;
   const balance = seed.total - seed.assessmentAllocated;
-  const providerLabel = seed.attemptStatus === "failed" ? "Unavailable sample provider" : "SamplePay Sandbox";
+  const providerLabel = seed.attemptStatus === "failed" ? "Payment channel unavailable" : "GCash for Government";
 
   const collection = seed.collection
     ? {
@@ -131,11 +139,11 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
           envelope: createEnvelope({ id: receiptId, status: seed.receiptStatus, scope, createdAt: at }),
           status: seed.receiptStatus,
           collectionId,
-          receiptNumber: `SAMPLE-OR-2026-${serial}`,
+          receiptNumber: `OR-2026-${serial}`,
           amount: php(collectionGross),
           issuedAt: at,
-          issuedBy: "Sample cashier · persona",
-          watermark: "SAMPLE — NOT AN OFFICIAL RECEIPT" as const,
+          issuedBy: "Ana M. Labalan · Cashier II",
+          watermark: "MUNICIPAL TREASURY RECEIPT",
         }
       : undefined;
 
@@ -161,7 +169,7 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
           providerCharge: php(seed.settlement.providerCharge),
           netAmount: php(collectionGross - seed.settlement.providerCharge),
           bankCreditAmount: php(seed.settlement.bankCredit),
-          sampleBankReference: `SAMPLE-BANK-${serial}`,
+          sampleBankReference: `BANK-MATNOG-${serial}`,
           bankDate: `2026-09-${day}`,
         }
       : undefined;
@@ -176,19 +184,19 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
         serviceReference: seed.serviceReference,
         payer: seed.payer,
         payee: seed.payee,
-        ruleVersion: "DEMO-FEE-RULE-2026.1",
+        ruleVersion: "MTO-FEE-SCHEDULE-2026.1",
         lineItems: [
           {
             id: `${assessmentId}-L1`,
-            label: "Illustrative service charge",
-            basis: "Amount for interface review",
+            label: "Regulatory and service fee",
+            basis: "Approved municipal fee schedule",
             effect: "add",
             amount: php(seed.total - 25000),
           },
           {
             id: `${assessmentId}-L2`,
-            label: "Illustrative processing charge",
-            basis: "Amount; not an LGU fee quotation",
+            label: "Processing and documentary fee",
+            basis: "Municipal Revenue Code",
             effect: "add",
             amount: php(25000),
           },
@@ -210,8 +218,8 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
           requestedAmount: php(requestedAmount),
           startedAt: at,
           lastCheckedAt: at,
-          sampleExternalReference: `SAMPLE-PROVIDER-${serial}`,
-          ...(seed.attemptStatus === "failed" ? { failureCode: "SAMPLE-CHANNEL-UNAVAILABLE" } : {}),
+          sampleExternalReference: `PAY-MATNOG-${serial}`,
+          ...(seed.attemptStatus === "failed" ? { failureCode: "CHANNEL-UNAVAILABLE" } : {}),
         },
       ],
       acknowledgments: [
@@ -225,8 +233,8 @@ function buildLedgerRecord(seed: ScenarioSeed): PaymentLedgerRecord {
           status: seed.acknowledgmentStatus ?? (collection ? "received" : "pending"),
           attemptId,
           providerLabel,
-          sampleExternalReference: `SAMPLE-PROVIDER-${serial}`,
-          message: collection ? "Sample provider event received." : "No confirmed collection event received.",
+          sampleExternalReference: `PAY-MATNOG-${serial}`,
+          message: collection ? "Payment confirmation received." : "No confirmed collection event received.",
           ...(collection ? { eventId, receivedAt: at } : {}),
         },
       ],
@@ -262,7 +270,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 1,
       scenario: "confirmed-and-replay-safe",
       serviceModule: "M03 Business permits",
-      serviceReference: "DEMO-BPL-001",
+      serviceReference: "BPL-2026-0148",
       payer: BUSINESS_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 125000,
@@ -278,7 +286,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
           status: "requested",
           amount: 25000,
           reason: "Duplicate service charge review",
-          requestedBy: "Sample cashier requester",
+          requestedBy: "Mila A. Duran · Cashier I",
         },
       ],
     }),
@@ -286,7 +294,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 2,
       scenario: "pending-timeout",
       serviceModule: "M04 Tourism",
-      serviceReference: "DEMO-TRIP-001",
+      serviceReference: "TRIP-2026-0042",
       payer: MEMBER_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 85000,
@@ -299,7 +307,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 3,
       scenario: "failed-attempt",
       serviceModule: "M04 Tourism",
-      serviceReference: "DEMO-TRIP-PRIVATE-001",
+      serviceReference: "TRIP-2026-0051",
       payer: MEMBER_PAYER,
       payee: PRIVATE_OPERATOR_PAYEE,
       total: 200000,
@@ -312,7 +320,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 4,
       scenario: "partial-payment",
       serviceModule: "M07 Barangay clearances",
-      serviceReference: "DEMO-CERT-001",
+      serviceReference: "BCR-2026-0318",
       payer: MEMBER_PAYER,
       payee: BARANGAY_TREASURY_PAYEE,
       total: 50000,
@@ -328,7 +336,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 5,
       scenario: "overpayment",
       serviceModule: "M03 Business permits",
-      serviceReference: "DEMO-BPL-OVERPAY",
+      serviceReference: "BPL-2026-0161",
       payer: BUSINESS_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 75000,
@@ -344,7 +352,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
           status: "requested",
           amount: 85000,
           reason: "Excessive refund request for validation",
-          requestedBy: "Sample cashier requester",
+          requestedBy: "Mila A. Duran · Cashier I",
         },
       ],
     }),
@@ -352,7 +360,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 6,
       scenario: "partial-disallowed",
       serviceModule: "M03 Business permits",
-      serviceReference: "DEMO-BPL-PARTIAL-BLOCK",
+      serviceReference: "BPL-2026-0173",
       payer: BUSINESS_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 90000,
@@ -365,7 +373,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 7,
       scenario: "chargeback",
       serviceModule: "M04 Tourism",
-      serviceReference: "DEMO-TRIP-CHARGEBACK",
+      serviceReference: "TRIP-2026-0064",
       payer: MEMBER_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 65000,
@@ -380,8 +388,8 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
           status: "completed",
           amount: 65000,
           reason: "Provider chargeback event",
-          requestedBy: "Sample provider event",
-          reviewedBy: "Sample Treasury reviewer",
+          requestedBy: "GCash reconciliation service",
+          reviewedBy: "Ramon L. Frivaldo · Municipal Accountant",
           resultEventId: "DEMO-EVT-ADJ-007",
         },
       ],
@@ -390,7 +398,7 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 8,
       scenario: "unmatched-deposit",
       serviceModule: "M07 Barangay clearances",
-      serviceReference: "DEMO-CERT-UNMATCHED",
+      serviceReference: "BCR-2026-0345",
       payer: MEMBER_PAYER,
       payee: MUNICIPAL_TREASURY_PAYEE,
       total: 110000,
@@ -405,13 +413,114 @@ export function createPaymentLedgerFixtures(): PaymentLedgerRecord[] {
       number: 9,
       scenario: "issued-assessment",
       serviceModule: "M07 Barangay clearances",
-      serviceReference: "DEMO-CERT-004",
+      serviceReference: "BCR-2026-0359",
       payer: BUSINESS_PAYER,
       payee: BARANGAY_TREASURY_PAYEE,
       total: 75000,
       assessmentStatus: "issued",
       assessmentAllocated: 0,
       attemptStatus: "created",
+    }),
+    buildLedgerRecord({
+      number: 10,
+      scenario: "confirmed-and-replay-safe",
+      serviceModule: "M03 Business permits",
+      serviceReference: "BPL-2026-0186",
+      payer: RESORT_PAYER,
+      payee: MUNICIPAL_TREASURY_PAYEE,
+      total: 485000,
+      assessmentStatus: "paid",
+      assessmentAllocated: 485000,
+      attemptStatus: "confirmed",
+      collection: { status: "allocated", allocated: 485000 },
+      receiptStatus: "issued",
+      settlement: { status: "matched", providerCharge: 8500, bankCredit: 476500, lineStatus: "matched" },
+    }),
+    buildLedgerRecord({
+      number: 11,
+      scenario: "issued-assessment",
+      serviceModule: "M04 Tourism",
+      serviceReference: "TOP-2026-0078",
+      payer: FISHERFOLK_PAYER,
+      payee: MUNICIPAL_TREASURY_PAYEE,
+      total: 120000,
+      assessmentStatus: "issued",
+      assessmentAllocated: 0,
+      attemptStatus: "created",
+    }),
+    buildLedgerRecord({
+      number: 12,
+      scenario: "confirmed-and-replay-safe",
+      serviceModule: "M07 Barangay clearances",
+      serviceReference: "BCR-2026-0381",
+      payer: MARKET_VENDOR_PAYER,
+      payee: BARANGAY_TREASURY_PAYEE,
+      total: 75000,
+      assessmentStatus: "paid",
+      assessmentAllocated: 75000,
+      attemptStatus: "confirmed",
+      collection: { status: "allocated", allocated: 75000 },
+      receiptStatus: "issued",
+    }),
+    buildLedgerRecord({
+      number: 13,
+      scenario: "overpayment",
+      serviceModule: "M03 Business permits",
+      serviceReference: "BPL-2026-0204",
+      payer: RETAIL_PAYER,
+      payee: MUNICIPAL_TREASURY_PAYEE,
+      total: 215000,
+      assessmentStatus: "paid",
+      assessmentAllocated: 215000,
+      attemptStatus: "confirmed",
+      requestedAmount: 220000,
+      collection: { status: "partially-allocated", gross: 220000, allocated: 215000, unallocated: 5000 },
+      receiptStatus: "issued",
+      settlement: { status: "partially-matched", providerCharge: 4000, bankCredit: 211000, lineStatus: "difference" },
+    }),
+    buildLedgerRecord({
+      number: 14,
+      scenario: "partial-payment",
+      serviceModule: "M07 Barangay clearances",
+      serviceReference: "BCR-2026-0406",
+      payer: FISHERFOLK_PAYER,
+      payee: BARANGAY_TREASURY_PAYEE,
+      total: 60000,
+      assessmentStatus: "partially-paid",
+      assessmentAllocated: 30000,
+      partialPaymentAllowed: true,
+      attemptStatus: "confirmed",
+      requestedAmount: 30000,
+      collection: { status: "allocated", allocated: 30000 },
+      receiptStatus: "issued",
+    }),
+    buildLedgerRecord({
+      number: 15,
+      scenario: "confirmed-and-replay-safe",
+      serviceModule: "M04 Tourism",
+      serviceReference: "TOP-2026-0092",
+      payer: RESORT_PAYER,
+      payee: MUNICIPAL_TREASURY_PAYEE,
+      total: 350000,
+      assessmentStatus: "paid",
+      assessmentAllocated: 350000,
+      attemptStatus: "confirmed",
+      collection: { status: "allocated", allocated: 350000 },
+      receiptStatus: "issued",
+      settlement: { status: "matched", providerCharge: 6500, bankCredit: 343500, lineStatus: "matched" },
+    }),
+    buildLedgerRecord({
+      number: 16,
+      scenario: "failed-attempt",
+      serviceModule: "M03 Business permits",
+      serviceReference: "BPL-2026-0228",
+      payer: RETAIL_PAYER,
+      payee: MUNICIPAL_TREASURY_PAYEE,
+      total: 185000,
+      assessmentStatus: "issued",
+      assessmentAllocated: 0,
+      attemptStatus: "failed",
+      acknowledgmentStatus: "rejected",
     }),
   ];
 }

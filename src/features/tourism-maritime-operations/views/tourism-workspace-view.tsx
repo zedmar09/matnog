@@ -102,7 +102,7 @@ function TourismWorkspaceContent({
   const [partySize, setPartySize] = useState(2);
   const [createdId, setCreatedId] = useState<string>();
   const [formError, setFormError] = useState("");
-  const trip = recordId ? tourismRepository.readTrip(recordId) : tourismRepository.readTrip("DEMO-TRIP-001");
+  const trip = recordId ? tourismRepository.readTrip(recordId) : tourismRepository.list()[0];
   const destination = TOURISM_DESTINATIONS.find((item) => item.id === (recordId ?? destinationId));
   const isOps = mode === "trip-board" || mode === "trip-detail" || mode === "operators" || mode === "advisories";
   if (isOps && workspaceRole !== "municipal")

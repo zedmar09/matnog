@@ -26,7 +26,14 @@ export type CollectionStatus =
 export type GovernmentReceiptStatus = "preview" | "issued" | "voided" | "replaced";
 export type SettlementStatus = "pending" | "partially-matched" | "matched" | "exception";
 export type AdjustmentType = "refund" | "void" | "reversal" | "chargeback";
-export type AdjustmentStatus = "requested" | "approved" | "rejected" | "processing" | "completed" | "failed";
+export type AdjustmentStatus =
+  | "requested"
+  | "approved"
+  | "rejected"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "withdrawn";
 export type PaymentLedgerScenario =
   | "issued-assessment"
   | "confirmed-and-replay-safe"
@@ -146,7 +153,7 @@ export type GovernmentReceipt = {
   issuedAt?: string;
   issuedBy?: string;
   replacedByReceiptId?: string;
-  watermark: "SAMPLE — NOT AN OFFICIAL RECEIPT";
+  watermark: string;
 };
 
 export type SettlementLine = {

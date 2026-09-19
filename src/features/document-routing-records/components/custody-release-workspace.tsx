@@ -76,11 +76,11 @@ function CustodyPanel({
       role,
       record.document.envelope.id,
       values.receiverOfficeId,
-      "Receiving clerk · demo persona",
+      "Receiving Clerk",
       values.trackingReference,
     );
     if (result.kind !== "success") {
-      setAcceptErrors(errorsOf(result, "The sample handover could not be accepted.", "tracking-reference"));
+      setAcceptErrors(errorsOf(result, "The handover could not be accepted.", "tracking-reference"));
       return;
     }
     setNotice("Receiver acceptance recorded. Physical custody now names the receiving office.");
@@ -95,10 +95,10 @@ function CustodyPanel({
       role,
       record.document.envelope.id,
       values.reason,
-      "Records supervisor · demo persona",
+      "Municipal Records Supervisor",
     );
     if (result.kind !== "success") {
-      setDisputeErrors(errorsOf(result, "The sample custody dispute could not be recorded.", "custody-dispute-reason"));
+      setDisputeErrors(errorsOf(result, "The custody dispute could not be recorded.", "custody-dispute-reason"));
       return;
     }
     setNotice("Custody is marked disputed. The recorded holder remains unchanged while staff investigate.");
@@ -127,7 +127,7 @@ function CustodyPanel({
       ) : (
         <>
           <div className="document-custody-label">
-            <span>SAMPLE · NOT VALID FOR OFFICIAL USE</span>
+            <span>PHYSICAL DOCUMENT ROUTING</span>
             <strong>{custody.trackingReference}</strong>
             <div>
               <small>From</small>
@@ -252,13 +252,13 @@ function ReleasePanel({
       record.document.envelope.id,
       values.versionId,
       values.note,
-      "Authorized signatory · demo persona",
+      "Authorized Municipal Signatory",
     );
     if (result.kind !== "success") {
-      setErrors(errorsOf(result, "The sample release could not be recorded.", "release-version"));
+      setErrors(errorsOf(result, "The release could not be recorded.", "release-version"));
       return;
     }
-    setNotice("The explicitly approved revision was released to the sample archive queue.");
+    setNotice("The approved revision was released and is now eligible for archiving.");
     onUpdate(result.data);
   };
 
@@ -283,7 +283,7 @@ function ReleasePanel({
       {notice && <NoticePanel className="mt-4">{notice}</NoticePanel>}
       {record.release ? (
         <div className="document-release-receipt">
-          <span>SAMPLE RELEASE · NO LEGAL SIGNATURE</span>
+          <span>DOCUMENT RELEASE RECEIPT</span>
           <Archive />
           <h3>{record.release.sampleOutputReference}</h3>
           <p>
@@ -304,7 +304,7 @@ function ReleasePanel({
             </div>
           </dl>
           <Button asChild variant="outline">
-            <Link href="/ops/documents/archive">Open archive preview</Link>
+            <Link href="/ops/documents/archive">Open records archive</Link>
           </Button>
         </div>
       ) : role === "municipal" ? (
@@ -338,9 +338,7 @@ function ReleasePanel({
           </Button>
         </form>
       ) : (
-        <NoticePanel className="mt-4">
-          The selected demo role can inspect release state but cannot release a file.
-        </NoticePanel>
+        <NoticePanel className="mt-4">This role can inspect release status but cannot release a file.</NoticePanel>
       )}
     </ContentPanel>
   );

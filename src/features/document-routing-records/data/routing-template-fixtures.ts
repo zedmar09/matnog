@@ -7,17 +7,17 @@ import {
   TOURISM_OFFICE,
 } from "./document-foundation-fixtures";
 
-/** Stable templates used only by the local editor preview. */
+/** Stable records loaded by the local routing-template repository. */
 export const ROUTING_TEMPLATE_FIXTURES: readonly RoutingTemplate[] = [
   {
-    id: "DEMO-TPL-STANDARD",
+    id: "TPL-STANDARD",
     name: "Standard municipal review",
     version: 3,
     mode: "sequential",
     status: "active",
     stages: [
       {
-        id: "DEMO-TPL-STANDARD-S1",
+        id: "TPL-STANDARD-S1",
         title: "Records intake",
         office: RECORDS_OFFICE,
         assigneePersona: "Records receiving clerk",
@@ -26,7 +26,7 @@ export const ROUTING_TEMPLATE_FIXTURES: readonly RoutingTemplate[] = [
         acknowledgmentRequired: true,
       },
       {
-        id: "DEMO-TPL-STANDARD-S2",
+        id: "TPL-STANDARD-S2",
         title: "Office review",
         office: MAYORS_OFFICE,
         assigneePersona: "Office reviewer",
@@ -37,14 +37,14 @@ export const ROUTING_TEMPLATE_FIXTURES: readonly RoutingTemplate[] = [
     ],
   },
   {
-    id: "DEMO-TPL-SAFETY",
+    id: "TPL-SAFETY",
     name: "Parallel event safety review",
     version: 2,
     mode: "parallel",
     status: "active",
     stages: [
       {
-        id: "DEMO-TPL-SAFETY-S1",
+        id: "TPL-SAFETY-S1",
         title: "Tourism intake",
         office: TOURISM_OFFICE,
         assigneePersona: "Tourism receiving clerk",
@@ -53,7 +53,7 @@ export const ROUTING_TEMPLATE_FIXTURES: readonly RoutingTemplate[] = [
         acknowledgmentRequired: true,
       },
       {
-        id: "DEMO-TPL-SAFETY-S2",
+        id: "TPL-SAFETY-S2",
         title: "Health review",
         office: HEALTH_OFFICE,
         assigneePersona: "Health reviewer",
@@ -62,7 +62,7 @@ export const ROUTING_TEMPLATE_FIXTURES: readonly RoutingTemplate[] = [
         acknowledgmentRequired: false,
       },
       {
-        id: "DEMO-TPL-SAFETY-S3",
+        id: "TPL-SAFETY-S3",
         title: "Engineering review",
         office: ENGINEERING_OFFICE,
         assigneePersona: "Engineering reviewer",

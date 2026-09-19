@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import Link from "next/link";
 
-import { ArrowLeft, CheckCircle2, ReceiptText, ShieldAlert, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ReceiptText, XCircle } from "lucide-react";
 
 import { ConfirmationDialog } from "@/shared/components/confirmation-dialog";
 import { ContentPanel } from "@/shared/components/content-panel";
@@ -20,31 +20,31 @@ import { useWorkspaceSession } from "@/shared/providers/workspace-session-provid
 
 import { MoneyStatusBadge } from "../components/money-status-badge";
 import { paymentLedgerRepository } from "../services/payment-ledger";
-import { formatPhp } from "../services/payment-presentation";
+import { displayFinancialReference, formatPhp } from "../services/payment-presentation";
 import type { AdjustmentReviewDecision, PaymentLedgerRecord } from "../types/payment-treasury";
 
 function resultMessage<T>(result: RepositoryResult<T>): string {
   if (result.kind === "invalid") return result.errors.map((error) => error.message).join(" ");
-  if (result.kind === "empty") return result.reason ?? "The sample adjustment was not found.";
+  if (result.kind === "empty") return result.reason ?? "The adjustment was not found.";
   if (result.kind === "conflict" || result.kind === "denied" || result.kind === "failure") return result.message;
-  return "The sample review could not be completed.";
+  return "The review could not be completed.";
 }
 
 export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string }) {
   const { role } = useWorkspaceSession();
   const initial = paymentLedgerRepository.readByAdjustment(adjustmentId);
   const [record, setRecord] = useState<PaymentLedgerRecord | null>(initial.kind === "success" ? initial.data : null);
-  const [reviewer, setReviewer] = useState("Sample Treasury reviewer");
+  const [reviewer, setReviewer] = useState("Ramon L. Frivaldo · Municipal Accountant");
   const [reviewReason, setReviewReason] = useState("Reviewed against the collection history");
-  const [eventId, setEventId] = useState(`DEMO-EVT-${adjustmentId}`);
+  const [eventId, setEventId] = useState(`EVT-${adjustmentId.replace("DEMO-", "")}`);
   const [decision, setDecision] = useState<AdjustmentReviewDecision | null>(null);
   const [message, setMessage] = useState<string>();
 
   if (role !== "municipal") {
     return (
       <PermissionState
-        title="Adjustment review requires the municipal demo role"
-        description="Refund, void, reversal, and chargeback decisions are outside the selected role projection."
+        title="Adjustment review requires municipal access"
+        description="Refund, void, reversal, and chargeback decisions are available to authorized treasury staff."
       />
     );
   }
@@ -57,7 +57,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
         description="The adjustment reference was not found."
         action={
           <Button asChild variant="outline">
-            <Link href="/ops/treasury/reconciliation">Return to reconciliation</Link>
+            <Link href="/ops/treasury/adjustments">Return to adjustments</Link>
           </Button>
         }
       />
@@ -92,7 +92,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
     setMessage(
       result.data.outcome === "duplicate"
         ? `${eventId} was already reviewed; no financial record changed.`
-        : `${adjustment.envelope.id} was ${result.data.outcome} by a separate persona.`,
+        : `${displayFinancialReference(adjustment.envelope.id)} was ${result.data.outcome} by a separate reviewer.`,
     );
   }
 
@@ -100,21 +100,15 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
     <>
       <div className="ops-topline">
         <div>
-          <span className="eyebrow">M06 · Treasury adjustment review</span>
-          <h1>{adjustment.envelope.id}</h1>
+          <h1>{displayFinancialReference(adjustment.envelope.id)}</h1>
           <p>Review the original request and collection without replacing either financial record.</p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/ops/treasury/reconciliation">
-            <ArrowLeft /> Reconciliation
+          <Link href="/ops/treasury/adjustments">
+            <ArrowLeft /> Adjustments
           </Link>
         </Button>
       </div>
-      <NoticePanel className="mb-6" icon={<ShieldAlert size={18} />}>
-        This local review moves no money. The requester cannot approve their own adjustment, and the original collection
-        amount remains visible.
-      </NoticePanel>
-
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
         <ContentPanel as="section">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -126,9 +120,11 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
               tone={
                 adjustment.status === "completed"
                   ? "success"
-                  : adjustment.status === "rejected"
-                    ? "destructive"
-                    : "pending"
+                  : adjustment.status === "withdrawn"
+                    ? "neutral"
+                    : adjustment.status === "rejected"
+                      ? "destructive"
+                      : "pending"
               }
             >
               {adjustment.status}
@@ -149,7 +145,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
             </div>
             <div>
               <dt className="text-muted-foreground text-xs">Collection</dt>
-              <dd>{adjustment.collectionId}</dd>
+              <dd>{displayFinancialReference(adjustment.collectionId)}</dd>
             </div>
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground text-xs">Original reason</dt>
@@ -173,9 +169,9 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
                   value={reviewer}
                   onChange={(event) => setReviewer(event.target.value)}
                 >
-                  <option>Sample Treasury reviewer</option>
-                  <option>Sample Municipal accountant</option>
-                  <option>Sample cashier requester</option>
+                  <option>Ramon L. Frivaldo · Municipal Accountant</option>
+                  <option>Elena G. Robles · Revenue Collection Clerk</option>
+                  <option>Mila A. Duran · Cashier I</option>
                 </select>
               </label>
               <FormField id="adjustment-review-reason" label="Review reason">
@@ -188,16 +184,19 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
               </FormField>
               <div className="flex flex-wrap gap-3">
                 <Button onClick={() => setDecision("approve")}>
-                  <CheckCircle2 /> Approve sample adjustment
+                  <CheckCircle2 /> Approve adjustment
                 </Button>
                 <Button variant="outline" onClick={() => setDecision("reject")}>
-                  <XCircle /> Reject sample adjustment
+                  <XCircle /> Reject adjustment
                 </Button>
               </div>
             </div>
           ) : (
             <div className="mt-6 rounded-xl bg-muted p-4 text-sm">
-              <strong className="block">Review completed by {adjustment.reviewedBy}</strong>
+              <strong className="block">
+                {adjustment.status === "withdrawn" ? "Request withdrawn by" : "Review completed by"}{" "}
+                {adjustment.reviewedBy}
+              </strong>
               <span>
                 {adjustment.resultEventId} · {adjustment.status}
               </span>
@@ -216,7 +215,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
           {collection && (
             <div className="mt-5 rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <strong>{collection.envelope.id}</strong>
+                <strong>{displayFinancialReference(collection.envelope.id)}</strong>
                 <MoneyStatusBadge state={{ kind: "collection", status: collection.status }} />
               </div>
               <dl className="mt-4 space-y-2 text-sm">
@@ -237,7 +236,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
           )}
           {receipt && (
             <div className="mt-4 rounded-xl border p-4 text-sm">
-              <strong className="block">{receipt.receiptNumber}</strong>
+              <strong className="block">{displayFinancialReference(receipt.receiptNumber)}</strong>
               <span>{receipt.watermark}</span>
               <div className="mt-3">
                 <MoneyStatusBadge state={{ kind: "government-receipt", status: receipt.status }} />
@@ -258,7 +257,7 @@ export function TreasuryAdjustmentView({ adjustmentId }: { adjustmentId: string 
             ? "The local result will update adjustment and collection status while retaining the original amounts."
             : "The request and reason remain in history; the collection will not change."
         }
-        confirmLabel={decision === "approve" ? "Approve sample adjustment" : "Reject sample adjustment"}
+        confirmLabel={decision === "approve" ? "Approve adjustment" : "Reject adjustment"}
         destructive={decision === "reject"}
         onConfirm={confirmReview}
       />

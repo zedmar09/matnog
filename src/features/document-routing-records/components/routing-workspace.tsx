@@ -81,7 +81,7 @@ function TaskReviewCard({
     setErrors([]);
     if (result.kind !== "success") {
       setErrors(
-        resultError(result, "The sample task could not be updated.").map((error) => ({
+        resultError(result, "The task could not be updated.").map((error) => ({
           ...error,
           id: error.id === "reason" || error.id === "review-note" ? reviewFieldId : error.id,
         })),
@@ -124,7 +124,7 @@ function TaskReviewCard({
       )}
       {delegationExpired && (
         <NoticePanel className="mt-4">
-          This delegation expired before the fixed demo date. Reassign the task before an endorsement action.
+          This delegation has expired. Reassign the task before recording an endorsement.
         </NoticePanel>
       )}
       <ErrorSummary errors={errors} title="Task action needs attention" />
@@ -139,7 +139,7 @@ function TaskReviewCard({
                   "municipal",
                   record.document.envelope.id,
                   task.id,
-                  "Receiving clerk · demo persona",
+                  "Receiving Clerk",
                 ),
                 `${task.title} was acknowledged. Physical custody, when present, remains separate.`,
               )
@@ -156,7 +156,7 @@ function TaskReviewCard({
             id={reviewFieldId}
             label="Review note"
             error={reviewError}
-            hint="Required for a return or endorsement. This remains sample local data."
+            hint="Required for a return or endorsement."
           >
             {(field) => (
               <Textarea
@@ -255,13 +255,13 @@ export function RoutingWorkspace({
       acknowledgmentRequired: values.acknowledgmentRequired === "yes",
       placement: values.placement,
       assignmentNote: values.assignmentNote,
-      actor: "Routing coordinator · demo persona",
+      actor: "Routing Coordinator",
     });
     if (result.kind !== "success") {
-      setErrors(resultError(result, "The sample stage could not be assigned."));
+      setErrors(resultError(result, "The stage could not be assigned."));
       return;
     }
-    update(result.data, `${values.title} was added to the local route.`);
+    update(result.data, `${values.title} was added to the route.`);
     reset();
   };
 
@@ -271,7 +271,7 @@ export function RoutingWorkspace({
         <SectionHeading
           eyebrow={`Active template · version ${record.route.templateVersion}`}
           title="Routing workspace"
-          description="Assign a stage, acknowledge receipt, or record a reasoned return or endorsement. Every action updates only local sample state."
+          description="Assign a stage, acknowledge receipt, or record a reasoned return or endorsement. Every action is recorded in the document routing history."
         />
         <div className="document-route-badges">
           <StatusBadge tone={record.route.envelope.status === "complete" ? "success" : "pending"}>
@@ -294,7 +294,7 @@ export function RoutingWorkspace({
             <UserPlus />
           </div>
           <h2 id="stage-assignment-title">Assign another stage</h2>
-          <p>Add an office task to demonstrate sequential or same-stage parallel routing.</p>
+          <p>Add an office task as the next sequential stage or a parallel review at the current stage.</p>
           <ErrorSummary errors={errors} title="Assignment needs attention" />
           <form onSubmit={handleSubmit(assign)} noValidate>
             <FormField id="stage-title" label="Stage title" error={fieldErrors.title?.message}>

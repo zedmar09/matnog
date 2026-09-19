@@ -17,13 +17,13 @@ import type {
   RouteTaskState,
 } from "../types/document-routing";
 
-export const RECORDS_OFFICE: OfficeRef = { id: "DEMO-OFF-RECORDS", label: "Municipal Records Office" };
-export const MAYORS_OFFICE: OfficeRef = { id: "DEMO-OFF-MAYOR", label: "Office of the Mayor" };
-export const TOURISM_OFFICE: OfficeRef = { id: "DEMO-OFF-TOURISM", label: "Municipal Tourism Office" };
-export const ENGINEERING_OFFICE: OfficeRef = { id: "DEMO-OFF-ENGINEERING", label: "Municipal Engineering Office" };
-export const HEALTH_OFFICE: OfficeRef = { id: "DEMO-OFF-HEALTH", label: "Municipal Health Office" };
-export const BARANGAY_OFFICE: OfficeRef = { id: "DEMO-OFF-BRGY-A", label: "Demo Barangay A Office" };
-export const LEGAL_OFFICE: OfficeRef = { id: "DEMO-OFF-LEGAL", label: "Municipal Legal Office" };
+export const RECORDS_OFFICE: OfficeRef = { id: "OFF-RECORDS", label: "Municipal Records Office" };
+export const MAYORS_OFFICE: OfficeRef = { id: "OFF-MAYOR", label: "Office of the Mayor" };
+export const TOURISM_OFFICE: OfficeRef = { id: "OFF-TOURISM", label: "Municipal Tourism Office" };
+export const ENGINEERING_OFFICE: OfficeRef = { id: "OFF-ENGINEERING", label: "Municipal Engineering Office" };
+export const HEALTH_OFFICE: OfficeRef = { id: "OFF-HEALTH", label: "Municipal Health Office" };
+export const BARANGAY_OFFICE: OfficeRef = { id: "OFF-BRGY-POBLACION", label: "Barangay Poblacion Office" };
+export const LEGAL_OFFICE: OfficeRef = { id: "OFF-LEGAL", label: "Municipal Legal Office" };
 
 type TaskSeed = {
   title: string;
@@ -58,26 +58,26 @@ type FixtureSeed = {
 
 function createFixture(seed: FixtureSeed): DocumentWorkspaceRecord {
   const serial = String(seed.number).padStart(3, "0");
-  const documentId = `DEMO-DOC-${serial}`;
-  const routeId = `DEMO-ROUTE-${serial}`;
-  const custodyId = `DEMO-CUST-${serial}`;
+  const documentId = `DOCREC-2026-${serial}`;
+  const routeId = `ROUTE-2026-${serial}`;
+  const custodyId = `CUST-2026-${serial}`;
   const day = String(8 + seed.number).padStart(2, "0");
   const createdAt = `2026-09-${day}T08:05:00+08:00`;
-  const versionsSeed = seed.versions ?? [{ state: "submitted" as const, note: "Initial bundled sample file" }];
+  const versionsSeed = seed.versions ?? [{ state: "submitted" as const, note: "Initial received file" }];
   const versions: DocumentFileVersion[] = versionsSeed.map((version, index) => ({
-    id: `DEMO-FILE-${serial}-V${index + 1}`,
+    id: `FILE-2026-${serial}-V${index + 1}`,
     documentId,
     revision: index + 1,
-    filename: `sample-${seed.scenario}-r${index + 1}.pdf`,
+    filename: `document-${seed.scenario}-r${index + 1}.pdf`,
     mediaType: "application/pdf",
     sizeBytes: 220000 + seed.number * 10000 + index * 14000,
     state: version.state,
     addedAt: `2026-09-${day}T08:${String(5 + index * 12).padStart(2, "0")}:00+08:00`,
-    addedBy: "Records staff · demo persona",
+    addedBy: "Municipal Records Officer",
     note: version.note,
   }));
   const tasks: RouteTask[] = seed.tasks.map((task, index) => ({
-    id: `DEMO-TASK-${serial}-${index + 1}`,
+    id: `TASK-2026-${serial}-${index + 1}`,
     routeId,
     documentId,
     title: task.title,
@@ -107,7 +107,7 @@ function createFixture(seed: FixtureSeed): DocumentWorkspaceRecord {
           intendedReceiver: MAYORS_OFFICE,
           trackingReference: "HAND-2026-0017",
           sentAt: "2026-09-15T08:40:00+08:00",
-          sentBy: "Records staff · demo persona",
+          sentBy: "Municipal Records Officer",
         }
       : {}),
     ...seed.custody,
@@ -131,7 +131,7 @@ function createFixture(seed: FixtureSeed): DocumentWorkspaceRecord {
       classification: seed.classification ?? "internal",
       sourceModule: seed.sourceModule,
       sourceRecordId: seed.sourceRecordId,
-      currentFileVersionId: versions.at(-1)?.id ?? `DEMO-FILE-${serial}-V1`,
+      currentFileVersionId: versions.at(-1)?.id ?? `FILE-2026-${serial}-V1`,
       routeId,
       custodyId,
       allowedRoles: seed.allowedRoles ?? ["municipal"],
@@ -149,7 +149,7 @@ function createFixture(seed: FixtureSeed): DocumentWorkspaceRecord {
         createdAt,
       }),
       documentId,
-      templateId: `DEMO-TPL-${seed.scenario.toUpperCase()}`,
+      templateId: `TPL-${seed.scenario.toUpperCase()}`,
       templateVersion: 1,
       currentStage: Math.max(1, ...tasks.map((task) => task.sequence)),
       taskIds: tasks.map((task) => task.id),
@@ -168,15 +168,15 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 1,
     scenario: "physical-handover",
-    subject: "Sample coastal activity endorsement",
+    subject: "Coastal activity endorsement for island tour operations",
     documentType: "Endorsement packet",
     status: "routed",
     sourceModule: "M04 Tourism & maritime operations",
-    sourceRecordId: "DEMO-TRIP-001",
+    sourceRecordId: "TRIP-2026-0918-01",
     allowedRoles: ["municipal", "partner"],
     versions: [
-      { state: "superseded", note: "Initial sample scan" },
-      { state: "submitted", note: "Readable replacement scan" },
+      { state: "superseded", note: "Initial scanned endorsement packet" },
+      { state: "submitted", note: "Clear replacement scan received" },
     ],
     tasks: [
       {
@@ -199,11 +199,11 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 2,
     scenario: "digital-review",
-    subject: "Sample barangay certification request",
+    subject: "Barangay residency certification request",
     documentType: "Digital certification packet",
     status: "in-review",
     sourceModule: "M07 Barangay certifications",
-    sourceRecordId: "DEMO-CERT-001",
+    sourceRecordId: "BCRT-2026-0142",
     allowedRoles: ["municipal", "barangay"],
     tasks: [
       {
@@ -218,11 +218,11 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 3,
     scenario: "parallel-review",
-    subject: "Sample event safety review",
+    subject: "Municipal event safety clearance review",
     documentType: "Parallel review packet",
     status: "in-review",
     sourceModule: "M11 Citizen service desk",
-    sourceRecordId: "DEMO-SVC-003",
+    sourceRecordId: "ACT-2026-0037",
     routeMode: "parallel",
     tasks: [
       {
@@ -248,13 +248,13 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 4,
     scenario: "returned-correction",
-    subject: "Sample business sketch correction",
+    subject: "Business location sketch correction",
     documentType: "Business attachment",
     status: "returned",
     sourceModule: "M03 Business permits",
-    sourceRecordId: "DEMO-BPL-001",
+    sourceRecordId: "BP-2026-00184",
     versions: [
-      { state: "superseded", note: "Returned because the sample sketch was unreadable" },
+      { state: "superseded", note: "Returned because the submitted location sketch was unreadable" },
       { state: "working", note: "Replacement draft awaiting resubmission" },
     ],
     tasks: [
@@ -270,14 +270,14 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 5,
     scenario: "delegated-review",
-    subject: "Sample delegated approval packet",
+    subject: "Delegated approval memorandum for municipal services",
     documentType: "Approval memorandum",
     status: "in-review",
     sourceModule: "M11 Citizen service desk",
-    sourceRecordId: "DEMO-SVC-005",
+    sourceRecordId: "SR-2026-0281",
     delegations: [
       {
-        id: "DEMO-DEL-001",
+        id: "DEL-2026-001",
         fromPersona: "Municipal administrator",
         toPersona: "Acting municipal administrator",
         validFrom: "2026-09-10T08:00:00+08:00",
@@ -291,7 +291,7 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
         office: MAYORS_OFFICE,
         persona: "Acting municipal administrator",
         state: "in-review",
-        delegationId: "DEMO-DEL-001",
+        delegationId: "DEL-2026-001",
         dueAt: "2026-09-15T14:00:00+08:00",
       },
     ],
@@ -304,7 +304,7 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
     status: "in-review",
     classification: "restricted",
     sourceModule: "M17 Platform administration",
-    sourceRecordId: "DEMO-ADM-006",
+    sourceRecordId: "ADM-2026-0064",
     allowedRoles: ["municipal"],
     tasks: [
       {
@@ -319,11 +319,11 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
   createFixture({
     number: 7,
     scenario: "archive-hold",
-    subject: "Released sample permit under archive hold",
+    subject: "Released business permit under retention hold",
     documentType: "Released permit packet",
     status: "released",
     sourceModule: "M03 Business permits",
-    sourceRecordId: "DEMO-BPL-007",
+    sourceRecordId: "BP-2026-00305",
     versions: [{ state: "approved", note: "Explicitly approved release revision" }],
     tasks: [
       {
@@ -337,16 +337,43 @@ export const DOCUMENT_ROUTING_FIXTURES: readonly [DocumentWorkspaceRecord, ...Do
     archive: {
       state: "eligible",
       hold: true,
-      holdReason: "Sample audit review remains open",
+      holdReason: "Annual records audit review remains open",
       holdPlacedAt: "2026-09-14T10:30:00+08:00",
-      holdPlacedBy: "Records supervisor · demo persona",
+      holdPlacedBy: "Municipal Records Supervisor",
     },
     release: {
-      versionId: "DEMO-FILE-007-V1",
+      versionId: "FILE-2026-007-V1",
       releasedAt: "2026-09-12T15:40:00+08:00",
-      releasedBy: "Records officer · demo persona",
-      note: "Released after the sample route completed",
-      sampleOutputReference: "SAMPLE-REL-DOC-2026-0048",
+      releasedBy: "Municipal Records Officer",
+      note: "Released after all required routing stages were completed",
+      sampleOutputReference: "REL-DOC-2026-0048",
+    },
+  }),
+  createFixture({
+    number: 8,
+    scenario: "digital-review",
+    subject: "Approved engineering inspection report",
+    documentType: "Inspection report",
+    status: "released",
+    sourceModule: "M09 Projects and infrastructure",
+    sourceRecordId: "PRJ-2026-0019",
+    versions: [{ state: "approved", note: "Approved inspection report and completion findings" }],
+    tasks: [
+      {
+        title: "Release approved inspection report",
+        office: RECORDS_OFFICE,
+        persona: "Municipal Records Officer",
+        state: "released",
+        dueAt: "2026-09-16T17:00:00+08:00",
+      },
+    ],
+    archive: { state: "archived", hold: false },
+    release: {
+      versionId: "FILE-2026-008-V1",
+      releasedAt: "2026-09-16T15:20:00+08:00",
+      releasedBy: "Municipal Records Officer",
+      note: "Released after engineering review and records verification",
+      sampleOutputReference: "REL-DOC-2026-0049",
     },
   }),
 ];

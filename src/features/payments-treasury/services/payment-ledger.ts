@@ -6,6 +6,7 @@ import { createPaymentLedgerFixtures } from "../data/payment-ledger-fixtures";
 import type {
   AdjustmentReviewDecision,
   AdjustmentReviewResult,
+  AdjustmentType,
   AssessmentIssueInput,
   CashPostingResult,
   CheckoutStartResult,
@@ -13,6 +14,7 @@ import type {
   ConfirmedCollection,
   GovernmentReceipt,
   LedgerEventResult,
+  PaymentAdjustment,
   PaymentAttempt,
   PaymentChannel,
   PaymentLedgerRecord,
@@ -110,7 +112,7 @@ export class PaymentLedgerRepository {
 
   read(assessmentReference: string): RepositoryResult<PaymentLedgerRecord> {
     const record = this.#find(assessmentReference);
-    return record ? ok(clone(record)) : empty("The sample assessment was not found.");
+    return record ? ok(clone(record)) : empty("The assessment was not found.");
   }
 
   issueAssessment(input: AssessmentIssueInput): RepositoryResult<PaymentLedgerRecord> {
@@ -127,7 +129,7 @@ export class PaymentLedgerRepository {
         ? [{ id: "serviceReference", message: "Name the source record." }]
         : []),
       ...(input.lineItems.length === 0 || totalMinorUnits <= 0
-        ? [{ id: "lineItems", message: "The sample assessment needs a positive charge." }]
+        ? [{ id: "lineItems", message: "The assessment needs a positive charge." }]
         : []),
       ...(!Number.isFinite(Date.parse(input.dueAt)) ? [{ id: "dueAt", message: "Choose a valid due date." }] : []),
     ];
@@ -178,12 +180,175 @@ export class PaymentLedgerRepository {
     return ok(clone(record));
   }
 
+  updateAssessment(
+    assessmentId: string,
+    input: {
+      serviceReference: string;
+      payerLabel: string;
+      totalMinorUnits: number;
+      dueAt: string;
+      partialPaymentPolicy: "allowed" | "disallowed";
+    },
+    expectedVersion: number,
+  ): RepositoryResult<PaymentLedgerRecord> {
+    const record = this.#find(assessmentId);
+    if (!record) return empty("The assessment was not found.");
+    const assessment = record.lifecycle.assessment;
+    if (assessment.envelope.version !== expectedVersion) {
+      return conflict(
+        "This assessment changed after it was opened. Review the current values before saving.",
+        assessment.envelope.version,
+      );
+    }
+    if (!["draft", "issued", "partially-paid"].includes(assessment.status)) {
+      return invalid([{ id: "assessment", message: "Only open assessments can be edited." }]);
+    }
+    const errors = [
+      ...(input.serviceReference.trim().length < 5
+        ? [{ id: "assessment-service-reference", message: "Enter the source service reference." }]
+        : []),
+      ...(input.payerLabel.trim().length < 3 ? [{ id: "assessment-payer", message: "Enter the payer name." }] : []),
+      ...(!Number.isSafeInteger(input.totalMinorUnits) || input.totalMinorUnits <= 0
+        ? [{ id: "assessment-total", message: "Enter a positive assessment amount." }]
+        : []),
+      ...(input.totalMinorUnits < assessment.allocated.minorUnits
+        ? [{ id: "assessment-total", message: "The total cannot be lower than the amount already collected." }]
+        : []),
+      ...(!Number.isFinite(Date.parse(input.dueAt))
+        ? [{ id: "assessment-due-date", message: "Choose a valid due date." }]
+        : []),
+    ];
+    if (errors.length) return invalid(errors);
+
+    const now = demoClock.nowIso();
+    assessment.serviceReference = input.serviceReference.trim().toUpperCase();
+    assessment.payer = { ...assessment.payer, label: input.payerLabel.trim() };
+    assessment.total = php(input.totalMinorUnits);
+    assessment.balance = php(input.totalMinorUnits - assessment.allocated.minorUnits);
+    assessment.status = assessment.allocated.minorUnits > 0 ? "partially-paid" : "issued";
+    assessment.partialPaymentPolicy = input.partialPaymentPolicy;
+    assessment.dueAt = new Date(input.dueAt).toISOString();
+    assessment.lineItems = [
+      {
+        id: `${assessment.envelope.id}-L1`,
+        label: "Assessed municipal service fee",
+        basis: assessment.ruleVersion,
+        effect: "add",
+        amount: php(input.totalMinorUnits),
+      },
+    ];
+    bumpEnvelope(assessment, assessment.status, now);
+    return ok(clone(record));
+  }
+
+  archiveAssessment(
+    assessmentId: string,
+    reason: string,
+    expectedVersion: number,
+  ): RepositoryResult<PaymentLedgerRecord> {
+    const record = this.#find(assessmentId);
+    if (!record) return empty("The assessment was not found.");
+    const assessment = record.lifecycle.assessment;
+    if (assessment.envelope.version !== expectedVersion) {
+      return conflict(
+        "This assessment changed after it was opened. Review the current values before archiving.",
+        assessment.envelope.version,
+      );
+    }
+    if (assessment.allocated.minorUnits > 0 || record.lifecycle.collections.length > 0) {
+      return invalid([
+        {
+          id: "assessment",
+          message: "An assessment with a collection cannot be archived. Use an adjustment workflow.",
+        },
+      ]);
+    }
+    if (reason.trim().length < 8) {
+      return invalid([
+        { id: "assessment-archive-reason", message: "Enter an archive reason of at least eight characters." },
+      ]);
+    }
+    const now = demoClock.nowIso();
+    assessment.status = "waived";
+    assessment.exemptionNote = `Archived: ${reason.trim()}`;
+    bumpEnvelope(assessment, assessment.status, now);
+    return ok(clone(record));
+  }
+
+  requestAdjustment(input: {
+    collectionId: string;
+    type: AdjustmentType;
+    amountMinorUnits: number;
+    reason: string;
+    requestedBy: string;
+  }): RepositoryResult<PaymentAdjustment> {
+    const collectionResult = this.readByCollection(input.collectionId);
+    if (collectionResult.kind !== "success") return empty("The collection was not found.");
+    const record = this.#records.find(
+      (item) => item.lifecycle.assessment.envelope.id === collectionResult.data.lifecycle.assessment.envelope.id,
+    );
+    if (!record) return empty("The collection was not found.");
+    const collection = record.lifecycle.collections.find(
+      (item) => item.envelope.id === input.collectionId.trim().toUpperCase(),
+    );
+    if (!collection) return empty("The collection was not found.");
+    const errors = [
+      ...(!Number.isSafeInteger(input.amountMinorUnits) || input.amountMinorUnits <= 0
+        ? [{ id: "adjustment-amount", message: "Enter a positive adjustment amount." }]
+        : []),
+      ...(input.amountMinorUnits > collection.grossAmount.minorUnits
+        ? [{ id: "adjustment-amount", message: "The adjustment cannot exceed the gross collection." }]
+        : []),
+      ...(input.reason.trim().length < 8
+        ? [{ id: "adjustment-reason", message: "Enter a reason of at least eight characters." }]
+        : []),
+      ...(input.requestedBy.trim().length < 3
+        ? [{ id: "adjustment-requester", message: "Enter the requesting officer." }]
+        : []),
+    ];
+    if (errors.length) return invalid(errors);
+    const serial = collection.envelope.id.replace("DEMO-PAY-", "");
+    const number = record.adjustments.length + 1;
+    const now = demoClock.nowIso();
+    const adjustment: PaymentAdjustment = {
+      envelope: createEnvelope({
+        id: `DEMO-ADJ-${serial}-${number}`,
+        status: "requested",
+        scope: collection.envelope.scope,
+        createdAt: now,
+      }),
+      type: input.type,
+      status: "requested",
+      collectionId: collection.envelope.id,
+      requestedAmount: php(input.amountMinorUnits),
+      reason: input.reason.trim(),
+      requestedBy: input.requestedBy.trim(),
+      requestedAt: now,
+    };
+    record.adjustments = [...record.adjustments, adjustment];
+    return ok(clone(adjustment));
+  }
+
+  withdrawAdjustment(adjustmentId: string, actor: string): RepositoryResult<PaymentAdjustment> {
+    const found = this.#findAdjustment(adjustmentId);
+    if (!found) return empty("The adjustment was not found.");
+    if (found.adjustment.status !== "requested") {
+      return invalid([{ id: "adjustment", message: "Only a pending adjustment request can be withdrawn." }]);
+    }
+    const now = demoClock.nowIso();
+    found.adjustment.status = "withdrawn";
+    found.adjustment.reviewedBy = actor.trim();
+    found.adjustment.reviewedAt = now;
+    bumpEnvelope(found.adjustment, found.adjustment.status, now);
+    return ok(clone(found.adjustment));
+  }
+
   readByAttempt(attemptId: string): RepositoryResult<PaymentLedgerRecord> {
     const normalized = attemptId.trim().toUpperCase();
     const record = this.#records.find(({ lifecycle }) =>
       lifecycle.attempts.some((attempt) => attempt.envelope.id === normalized),
     );
-    return record ? ok(clone(record)) : empty("The sample payment attempt was not found.");
+    return record ? ok(clone(record)) : empty("The payment attempt was not found.");
   }
 
   readByReceipt(receiptId: string): RepositoryResult<PaymentLedgerRecord> {
@@ -191,7 +356,17 @@ export class PaymentLedgerRepository {
     const record = this.#records.find(({ lifecycle }) =>
       lifecycle.receipts.some((receipt) => receipt.envelope.id === normalized || receipt.receiptNumber === normalized),
     );
-    return record ? ok(clone(record)) : empty("The sample receipt was not found.");
+    return record ? ok(clone(record)) : empty("The receipt was not found.");
+  }
+
+  readByCollection(collectionId: string): RepositoryResult<PaymentLedgerRecord> {
+    const normalized = collectionId.trim().toUpperCase();
+    const record = this.#records.find(({ lifecycle }) =>
+      lifecycle.collections.some(
+        (collection) => collection.envelope.id === normalized || collection.envelope.reference === normalized,
+      ),
+    );
+    return record ? ok(clone(record)) : empty("The collection was not found.");
   }
 
   readBySettlement(settlementId: string): RepositoryResult<PaymentLedgerRecord> {
@@ -199,7 +374,7 @@ export class PaymentLedgerRepository {
     const record = this.#records.find(({ lifecycle }) =>
       lifecycle.settlements.some((settlement) => settlement.envelope.id === normalized),
     );
-    return record ? ok(clone(record)) : empty("The sample settlement was not found.");
+    return record ? ok(clone(record)) : empty("The settlement was not found.");
   }
 
   readByAdjustment(adjustmentId: string): RepositoryResult<PaymentLedgerRecord> {
@@ -207,7 +382,7 @@ export class PaymentLedgerRepository {
     const record = this.#records.find(({ adjustments }) =>
       adjustments.some((adjustment) => adjustment.envelope.id === normalized),
     );
-    return record ? ok(clone(record)) : empty("The sample adjustment was not found.");
+    return record ? ok(clone(record)) : empty("The adjustment was not found.");
   }
 
   assignSettlement(
@@ -217,7 +392,7 @@ export class PaymentLedgerRepository {
     actor: string,
   ): RepositoryResult<SettlementActionResult> {
     const found = this.#findSettlement(settlementId);
-    if (!found) return empty("The sample settlement was not found.");
+    if (!found) return empty("The settlement was not found.");
     const { record, settlement } = found;
     const errors = [
       ...(assignedTo.trim().length < 3
@@ -263,7 +438,7 @@ export class PaymentLedgerRepository {
   ): RepositoryResult<SettlementActionResult> {
     const normalizedEventId = eventId.trim();
     const found = this.#findSettlement(settlementId);
-    if (!found) return empty("The sample settlement was not found.");
+    if (!found) return empty("The settlement was not found.");
     const { record, settlement } = found;
     const eventOwner = this.#handledReconciliationEvents.get(normalizedEventId);
     if (eventOwner) {
@@ -297,7 +472,7 @@ export class PaymentLedgerRepository {
       return invalid([
         {
           id: "corrected-bank-credit",
-          message: `The corrected sample bank credit must equal the ${expectedNet} centavo net settlement.`,
+          message: `The corrected bank credit must equal the ${expectedNet} centavo net settlement.`,
         },
       ]);
     }
@@ -332,7 +507,7 @@ export class PaymentLedgerRepository {
 
   maximumAdjustableMinorUnits(adjustmentId: string): RepositoryResult<number> {
     const found = this.#findAdjustment(adjustmentId);
-    if (!found) return empty("The sample adjustment was not found.");
+    if (!found) return empty("The adjustment was not found.");
     return ok(this.#maximumAdjustable(found.record, found.adjustment.envelope.id, found.adjustment.collectionId));
   }
 
@@ -345,7 +520,7 @@ export class PaymentLedgerRepository {
     expectedVersion: number,
   ): RepositoryResult<AdjustmentReviewResult> {
     const found = this.#findAdjustment(adjustmentId);
-    if (!found) return empty("The sample adjustment was not found.");
+    if (!found) return empty("The adjustment was not found.");
     const { record, adjustment } = found;
     const normalizedEventId = eventId.trim();
     const maximum = this.#maximumAdjustable(record, adjustment.envelope.id, adjustment.collectionId);
@@ -394,7 +569,7 @@ export class PaymentLedgerRepository {
       ]);
     }
     const collection = record.lifecycle.collections.find((item) => item.envelope.id === adjustment.collectionId);
-    if (!collection) return empty("The linked sample collection was not found.");
+    if (!collection) return empty("The linked collection was not found.");
 
     const at = demoClock.nowIso();
     adjustment.status = decision === "approve" ? "completed" : "rejected";
@@ -433,7 +608,7 @@ export class PaymentLedgerRepository {
 
   startAttempt(assessmentId: string, channel: PaymentChannel): RepositoryResult<CheckoutStartResult> {
     const record = this.#find(assessmentId);
-    if (!record) return empty("The sample assessment was not found.");
+    if (!record) return empty("The assessment was not found.");
     const assessment = record.lifecycle.assessment;
     if (assessment.balance.minorUnits <= 0 || ["draft", "expired", "revised", "waived"].includes(assessment.status)) {
       return invalid([{ id: "assessment", message: "This assessment is not available for checkout." }]);
@@ -469,7 +644,7 @@ export class PaymentLedgerRepository {
       }),
       status: "pending",
       attemptId,
-      providerLabel: channel === "cashier" ? "Sample cashier channel" : "SamplePay Sandbox",
+      providerLabel: channel === "cashier" ? "Municipal cashier counter" : "Electronic payment gateway",
       sampleExternalReference: attempt.sampleExternalReference ?? "SAMPLE-CHECKOUT",
       message: "No confirmed collection event received.",
     };
@@ -521,7 +696,7 @@ export class PaymentLedgerRepository {
     }
 
     const record = this.#find(normalizedAssessmentId);
-    if (!record) return empty("The sample assessment was not found.");
+    if (!record) return empty("The assessment was not found.");
 
     const eventOwner = this.#handledEvents.get(trimmedEventId);
     if (eventOwner) {
@@ -603,9 +778,9 @@ export class PaymentLedgerRepository {
       }),
       status: "pending",
       attemptId,
-      providerLabel: "Sample cashier channel",
+      providerLabel: "Municipal cashier counter",
       sampleExternalReference: attempt.sampleExternalReference ?? "SAMPLE-CASHIER",
-      message: "Sample cashier posting awaits confirmation.",
+      message: "Cashier posting awaits confirmation.",
     };
     record.lifecycle.attempts = [...record.lifecycle.attempts, attempt];
     record.lifecycle.acknowledgments = [...record.lifecycle.acknowledgments, acknowledgment];
@@ -625,7 +800,7 @@ export class PaymentLedgerRepository {
       ? confirmed.data.record.lifecycle.receipts.find((item) => item.collectionId === collection.envelope.id)
       : undefined;
     if (!collection || !receipt) {
-      return invalid([{ id: "cash-assessment", message: "The sample collection history could not be completed." }]);
+      return invalid([{ id: "cash-assessment", message: "The collection history could not be completed." }]);
     }
     this.#cashierSessionCollectionIds.add(collection.envelope.id);
     return ok({
@@ -644,9 +819,9 @@ export class PaymentLedgerRepository {
       return invalid([{ id: "event-id", message: "Use the stable event reference." }]);
     }
     const record = this.#find(normalizedAssessmentId);
-    if (!record) return empty("The sample assessment was not found.");
+    if (!record) return empty("The assessment was not found.");
     const attempt = record.lifecycle.attempts.find((item) => item.envelope.id === normalizedAttemptId);
-    if (!attempt) return empty("The sample payment attempt was not found.");
+    if (!attempt) return empty("The payment attempt was not found.");
 
     const eventOwner = this.#handledEvents.get(trimmedEventId);
     if (eventOwner) {
@@ -721,11 +896,11 @@ export class PaymentLedgerRepository {
       envelope: createEnvelope({ id: receiptId, status: "issued", scope: assessment.envelope.scope, createdAt: at }),
       status: "issued",
       collectionId,
-      receiptNumber: `SAMPLE-OR-2026-${serial}`,
+      receiptNumber: `OR-2026-${serial}`,
       amount: php(requested),
       issuedAt: at,
-      issuedBy: "Sample cashier · persona",
-      watermark: "SAMPLE — NOT AN OFFICIAL RECEIPT",
+      issuedBy: "Ana M. Labalan · Cashier II",
+      watermark: "MUNICIPAL TREASURY RECEIPT",
     };
 
     attempt.status = "confirmed";
@@ -744,7 +919,7 @@ export class PaymentLedgerRepository {
       existingAcknowledgment.eventId = trimmedEventId;
       existingAcknowledgment.receivedAt = at;
       existingAcknowledgment.message =
-        attempt.channel === "cashier" ? "Sample cashier posting confirmed." : "Sample provider event received.";
+        attempt.channel === "cashier" ? "Cashier posting confirmed." : "Payment confirmation received.";
       bumpEnvelope(existingAcknowledgment, "received", at);
     } else {
       const acknowledgment: ProviderAcknowledgment = {
@@ -756,11 +931,11 @@ export class PaymentLedgerRepository {
         }),
         status: "received",
         attemptId: attempt.envelope.id,
-        providerLabel: "SamplePay Sandbox",
+        providerLabel: "Electronic payment gateway",
         sampleExternalReference: `SAMPLE-PROVIDER-${serial}`,
         eventId: trimmedEventId,
         receivedAt: at,
-        message: "Sample provider event received.",
+        message: "Payment confirmation received.",
       };
       record.lifecycle.acknowledgments = [...record.lifecycle.acknowledgments, acknowledgment];
     }

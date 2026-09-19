@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DocumentScenarioBoundary
       emptyTitle="Routing inbox is clear"
-      emptyDescription="No sample document tasks are assigned in this selected state."
+      emptyDescription="No document tasks are currently assigned."
     >
       <RoutingInboxView />
     </DocumentScenarioBoundary>

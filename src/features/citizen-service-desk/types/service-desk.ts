@@ -3,18 +3,21 @@ export type CitizenRequestStatus =
   | "Assigned"
   | "Restricted referral"
   | "Resolved pending feedback"
-  | "Reopened";
+  | "Reopened"
+  | "Archived";
 export type ServiceDeskRequest = {
   id: string;
   serviceId: string;
   serviceName: string;
   category: string;
+  priority: "Low" | "Normal" | "High" | "Urgent";
   requesterContext: string;
   description: string;
   location: string;
   status: CitizenRequestStatus;
   owner: string;
   due: string;
+  createdAt: string;
   publicResponse?: string;
   internalProjection: string;
   documentReference?: string;
@@ -36,6 +39,9 @@ export type Appointment = {
   schedule: string;
   status: "Booked" | "Rescheduled" | "Cancelled";
   ticket: string;
+  requester: string;
+  contact: string;
+  createdAt: string;
 };
 export type QueueTicket = {
   id: string;

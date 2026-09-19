@@ -26,7 +26,15 @@ export class LocalServiceDeskRepository {
       : undefined;
   }
 
-  createRequest(input: { category: "ordinary" | "information" | "protected"; description: string; location: string }) {
+  createRequest(input: {
+    category: "ordinary" | "information" | "protected";
+    description: string;
+    location: string;
+    requester?: string;
+    priority?: ServiceDeskRequest["priority"];
+    owner?: string;
+    due?: string;
+  }) {
     if (input.description.trim().length < 12 || input.location.trim().length < 4) return undefined;
     this.sequence += 1;
     const restricted = input.category === "protected";
@@ -43,12 +51,14 @@ export class LocalServiceDeskRepository {
           ? "Public information request"
           : "Community concern",
       category: restricted ? "Restricted" : input.category === "information" ? "Information" : "General",
-      requesterContext: "DEMO-ACC-001",
+      priority: input.priority ?? "Normal",
+      requesterContext: input.requester?.trim() || "Maria Lourdes Dela Cruz",
       description: input.description.trim(),
       location: input.location.trim(),
       status: restricted ? "Restricted referral" : "Submitted",
-      owner: restricted ? "M10 designated desk" : "Unassigned",
-      due: restricted ? "Restricted" : "Assignment pending",
+      owner: restricted ? "Protected Cases Unit" : input.owner?.trim() || "Unassigned",
+      due: restricted ? "Restricted" : input.due?.trim() || "Assignment pending",
+      createdAt: "2026-09-19T09:00:00+08:00",
       internalProjection: restricted
         ? "Restricted details excluded; M10 owns the protected record"
         : "Awaiting category triage",
@@ -56,6 +66,48 @@ export class LocalServiceDeskRepository {
     };
     this.requests.unshift(created);
     return created;
+  }
+
+  updateRequest(
+    id: string,
+    input: {
+      serviceName: string;
+      category: string;
+      priority: ServiceDeskRequest["priority"];
+      requesterContext: string;
+      description: string;
+      location: string;
+      owner: string;
+      due: string;
+    },
+  ) {
+    const item = this.request(id);
+    if (!item || item.status === "Restricted referral" || item.status === "Archived") return false;
+    if (
+      input.serviceName.trim().length < 4 ||
+      input.requesterContext.trim().length < 3 ||
+      input.description.trim().length < 12 ||
+      input.location.trim().length < 4
+    )
+      return false;
+    item.serviceName = input.serviceName.trim();
+    item.category = input.category.trim();
+    item.priority = input.priority;
+    item.requesterContext = input.requesterContext.trim();
+    item.description = input.description.trim();
+    item.location = input.location.trim();
+    item.owner = input.owner.trim() || "Unassigned";
+    item.due = input.due.trim() || "Assignment pending";
+    item.history.push("Request information updated");
+    return true;
+  }
+
+  archiveRequest(id: string) {
+    const item = this.request(id);
+    if (!item || item.status === "Restricted referral" || item.status === "Archived") return false;
+    item.status = "Archived";
+    item.history.push("Request archived");
+    return true;
   }
 
   feedback(id: string, text: string) {
@@ -87,6 +139,9 @@ export class LocalServiceDeskRepository {
       schedule: `${slot.date} ${slot.time}`,
       status: "Booked",
       ticket: `A-${String(this.sequence).padStart(3, "0")}`,
+      requester: "Walk-in requester",
+      contact: "Contact recorded at intake",
+      createdAt: "2026-09-19T09:00:00+08:00",
     };
     this.appointments.unshift(appointment);
     return appointment;
@@ -129,6 +184,28 @@ export class LocalServiceDeskRepository {
     if (!ticket) return false;
     ticket.status = status;
     return true;
+  }
+
+  transferTicket(id: string, counter: string) {
+    const ticket = this.tickets.find((item) => item.id === id);
+    if (!ticket || counter.trim().length < 3) return false;
+    ticket.counter = counter.trim();
+    return true;
+  }
+
+  createTicket(input: { prefix: string; counter: string; service: string }) {
+    if (input.prefix.trim().length !== 1 || input.counter.trim().length < 3 || input.service.trim().length < 4)
+      return undefined;
+    this.sequence += 1;
+    const ticket: QueueTicket = {
+      id: `DEMO-Q-${String(this.sequence).padStart(3, "0")}`,
+      number: `${input.prefix.trim().toUpperCase()}-${String(this.sequence).padStart(3, "0")}`,
+      counter: input.counter.trim(),
+      service: input.service.trim(),
+      status: "Waiting",
+    };
+    this.tickets.push(ticket);
+    return ticket;
   }
 }
 export const localServiceDeskRepository = new LocalServiceDeskRepository();
