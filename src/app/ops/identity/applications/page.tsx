@@ -1,7 +1,4 @@
-import { IdentityReviewView } from "@/features/unified-account-and-id/views/identity-review-view";
-
-export const metadata = { title: "Identity applications" };
-
+import { ApplicationDirectoryView } from "@/features/unified-account-and-id/views/identity-directory-views";
 export default function Page() {
-  return <IdentityReviewView />;
+  return <ApplicationDirectoryView />;
 }

@@ -1,321 +1,210 @@
-import { demoClock } from "@/shared/data/demo-clock";
-
 import {
-  ACCESS_REVIEW_TASKS,
-  ADMIN_IDENTITIES,
-  CONFIG_VERSIONS,
-  IMPORT_ROWS,
-  INTEGRATIONS,
-  OPERATIONS_ITEMS,
-  OUTBOX_ITEMS,
-  PRIVACY_TASKS,
+  ADMIN_RECORDS,
+  ADMIN_SECTION_META,
+  type AdminRecord,
+  type AdminRecordInput,
+  type AdminSection,
 } from "../data/admin-fixtures";
 
-type IdentityRecord = {
-  id: string;
-  name: string;
-  office: string;
-  assignment: string;
-  state: string;
-  requestedChange: string;
-  requester: string;
-  reviewer: string;
-  history: string[];
-};
+export type AdminAction =
+  | "activate"
+  | "suspend"
+  | "deactivate"
+  | "approve"
+  | "reject"
+  | "revoke"
+  | "validate"
+  | "return"
+  | "assign"
+  | "hold"
+  | "release"
+  | "complete"
+  | "send"
+  | "retry"
+  | "cancel"
+  | "enable"
+  | "disable"
+  | "verify"
+  | "resolve"
+  | "reopen"
+  | "apply";
 
-type AccessRecord = {
-  id: string;
-  account: string;
-  role: string;
-  scope: string;
-  fields: string;
-  purpose: string;
-  validUntil: string;
-  requester: string;
-  reviewer: string;
-  state: string;
-  history: string[];
-};
-
-type ConfigRecord = {
-  id: string;
-  name: string;
-  current: string;
-  proposed: string;
-  impact: string;
-  effectiveDate: string;
-  state: string;
-  valid: boolean;
-  history: string[];
-};
-
-type PrivacyRecord = {
-  id: string;
-  title: string;
-  detail: string;
-  state: string;
-  hold: boolean;
-  history: string[];
-};
-
-type OutboxRecord = {
-  id: string;
-  direction: string;
-  channel: string;
-  recipient: string;
-  purpose: string;
-  state: string;
-  attempts: number;
-  correlationId: string;
-  cost: string;
-  history: string[];
-};
-
-type IntegrationRecord = {
-  id: string;
-  name: string;
-  owner: string;
-  purpose: string;
-  status: string;
-  credential: string;
-  correlationId: string;
-  history: string[];
-};
-
-type OperationRecord = {
-  id: string;
-  name: string;
-  detail: string;
-  state: string;
-  history: string[];
-};
-
-type ImportRecord = {
-  row: number;
-  source: string;
-  target: string;
-  finding: string;
-  decision: string;
-};
-
-/** Deeply strips `readonly`, so an `as const` fixture can seed mutable state. */
-type Mutable<T> = T extends readonly (infer U)[]
-  ? Mutable<U>[]
-  : T extends object
-    ? { -readonly [K in keyof T]: Mutable<T[K]> }
-    : T;
-
-const clone = <T>(value: T): Mutable<T> => structuredClone(value) as Mutable<T>;
-const validReason = (reason: string) => reason.trim().length >= 8;
+const clone = <T>(value: T): T => structuredClone(value);
+const valid = (input: AdminRecordInput) =>
+  input.title.trim().length >= 3 &&
+  input.subtitle.trim().length >= 3 &&
+  input.office.trim().length >= 2 &&
+  input.owner.trim().length >= 2 &&
+  input.description.trim().length >= 12;
 
 export class AdminRepository {
-  private identities: IdentityRecord[] = [];
-  private accessReviews: AccessRecord[] = [];
-  private configs: ConfigRecord[] = [];
-  private privacyTasks: PrivacyRecord[] = [];
-  private outbox: OutboxRecord[] = [];
-  private integrations: IntegrationRecord[] = [];
-  private operations: OperationRecord[] = [];
-  private importRows: ImportRecord[] = [];
+  private records = clone(ADMIN_RECORDS);
 
-  constructor() {
-    this.reset();
+  list(section: AdminSection) {
+    return clone(this.records.filter((record) => record.section === section));
   }
 
-  reset() {
-    this.identities = clone(ADMIN_IDENTITIES);
-    this.accessReviews = clone(ACCESS_REVIEW_TASKS);
-    this.configs = clone(CONFIG_VERSIONS);
-    this.privacyTasks = clone(PRIVACY_TASKS);
-    this.outbox = clone(OUTBOX_ITEMS);
-    this.integrations = clone(INTEGRATIONS);
-    this.operations = clone(OPERATIONS_ITEMS);
-    this.importRows = clone(IMPORT_ROWS);
+  find(section: AdminSection, id: string) {
+    return clone(this.records.find((record) => record.section === section && record.id === id.toUpperCase()));
   }
 
-  listIdentities() {
-    return clone(this.identities);
-  }
-
-  requestAssignment(input: { name: string; office: string; assignment: string; change: string; reason: string }) {
-    if (
-      input.name.trim().length < 3 ||
-      input.office.trim().length < 2 ||
-      input.assignment.trim().length < 3 ||
-      !validReason(input.reason)
-    )
-      return undefined;
-    const record: IdentityRecord = {
-      id: `DEMO-ADMIN-${String(this.identities.length + 1).padStart(3, "0")}`,
-      name: input.name.trim(),
-      office: input.office.trim(),
-      assignment: input.assignment.trim(),
-      state: "Pending owner review",
-      requestedChange: input.change,
-      requester: "DEMO-ADMIN-001",
-      reviewer: "DEMO-DPO-001",
-      history: [`${input.change} requested: ${input.reason.trim()}`],
+  create(section: AdminSection, input: AdminRecordInput) {
+    if (section === "audit" || !valid(input)) return undefined;
+    const prefix = ADMIN_SECTION_META[section].prefix;
+    const sequence =
+      Math.max(
+        0,
+        ...this.records
+          .filter((item) => item.section === section)
+          .map((item) => Number(item.id.match(/(\d+)$/)?.[1] ?? 0)),
+      ) + 1;
+    const record: AdminRecord = {
+      ...clone(input),
+      id: `${prefix}-2026-${String(sequence).padStart(3, "0")}`,
+      section,
+      history: [`Record created by ${input.owner}`],
+      immutable: false,
     };
-    this.identities.unshift(record);
+    this.records.unshift(record);
+    this.appendAudit("Administrative record created", record, "Create record");
     return clone(record);
   }
 
-  decideIdentity(id: string, decision: "approve" | "reject" | "deactivate", reason: string) {
-    const record = this.identities.find((item) => item.id === id);
-    if (!record || !validReason(reason) || record.requester === record.reviewer) return undefined;
-    if (decision === "approve" && record.state !== "Pending owner review") return undefined;
-    if (decision === "deactivate" && !record.state.includes("Active")) return undefined;
-    record.state =
-      decision === "reject"
-        ? "Rejected"
-        : decision === "deactivate" || record.requestedChange.includes("Leaver")
-          ? "Deactivated"
-          : "Active demo assignment";
-    record.history.push(`${decision} by ${record.reviewer}: ${reason.trim()}`);
-    return clone(record);
-  }
-
-  listAccessReviews() {
-    return clone(this.accessReviews);
-  }
-
-  decideAccess(id: string, decision: "approve" | "reject" | "deactivate", reason: string) {
-    const record = this.accessReviews.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    if (decision === "approve") {
-      if (
-        record.state !== "Requested" ||
-        record.requester === record.reviewer ||
-        Date.parse(`${record.validUntil}T23:59:59+08:00`) < demoClock.now().getTime()
-      )
-        return undefined;
-      record.state = "Active demo capability";
-    } else if (decision === "deactivate") {
-      if (record.state !== "Active demo capability") return undefined;
-      record.state = "Deactivated";
-    } else {
-      if (!["Requested", "Self-approval conflict", "Expired"].includes(record.state)) return undefined;
-      record.state = "Rejected";
-    }
-    record.history.push(`${decision} by ${record.reviewer}: ${reason.trim()}`);
-    return clone(record);
-  }
-
-  listConfigs() {
-    return clone(this.configs);
-  }
-
-  transitionConfig(id: string, decision: "validate" | "approve" | "activate" | "return", reason: string) {
-    const record = this.configs.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    if (decision === "validate") {
-      if (record.state !== "Draft" && record.state !== "Returned") return undefined;
-      record.state = record.valid ? "Validated" : "Validation failed";
-    }
-    if (decision === "approve") {
-      if (record.state !== "Validated") return undefined;
-      record.state =
-        Date.parse(`${record.effectiveDate}T00:00:00+08:00`) > demoClock.now().getTime() ? "Scheduled" : "Approved";
-    }
-    if (decision === "activate") {
-      if (!["Scheduled", "Approved"].includes(record.state)) return undefined;
-      if (Date.parse(`${record.effectiveDate}T00:00:00+08:00`) > demoClock.now().getTime()) return undefined;
-      record.state = "Active";
-      record.current = `${record.proposed} · activated without rewriting prior snapshots`;
-    }
-    if (decision === "return") {
-      if (record.state === "Active") return undefined;
-      record.state = "Returned";
-    }
-    record.history.push(`${decision}: ${reason.trim()}`);
-    return clone(record);
-  }
-
-  listPrivacyTasks() {
-    return clone(this.privacyTasks);
-  }
-
-  transitionPrivacy(id: string, decision: "review" | "request-hold-release" | "dispose", reason: string) {
-    const record = this.privacyTasks.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    if (decision === "request-hold-release") {
-      if (!record.hold) return undefined;
-      record.state = "Hold release review requested";
-    } else if (decision === "review") {
-      if (record.hold) return undefined;
-      record.state = "Reviewed locally";
-    } else {
-      if (record.hold || record.state !== "Reviewed locally") return undefined;
-      record.state = "Disposition simulated";
-    }
-    record.history.push(`${decision}: ${reason.trim()}`);
-    return clone(record);
-  }
-
-  listOutbox() {
-    return clone(this.outbox);
-  }
-
-  retryMessage(id: string, reason: string) {
-    const record = this.outbox.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    record.attempts += 1;
-    record.state = "Delivered local preview";
-    record.history.push(`Local retry ${record.attempts}: ${reason.trim()}; provider not contacted`);
-    return clone(record);
-  }
-
-  listIntegrations() {
-    return clone(this.integrations);
-  }
-
-  retryIntegration(id: string, reason: string) {
-    const record = this.integrations.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    record.status = record.name === "Payment provider" ? "Awaiting M06 confirmation" : "Reconciled locally";
-    record.history.push(`Retry/reconciliation: ${reason.trim()}; no external request sent`);
-    return clone(record);
-  }
-
-  listOperations() {
-    return clone(this.operations);
-  }
-
-  transitionOperation(id: string, decision: "assign" | "retry-sync" | "restore", reason: string) {
-    const record = this.operations.find((item) => item.id === id);
-    if (!record || !validReason(reason)) return undefined;
-    if (decision === "restore" && id !== "DEMO-OPS-001") return undefined;
-    if (decision === "retry-sync" && id !== "DEMO-OPS-002" && id !== "DEMO-OPS-003") return undefined;
-    record.state =
-      decision === "restore"
-        ? "Fixture restored locally"
-        : decision === "retry-sync"
-          ? "Local retry staged"
-          : "Owner acknowledged";
-    record.history.push(`${decision}: ${reason.trim()}`);
-    return clone(record);
-  }
-
-  listImportRows() {
-    return clone(this.importRows);
-  }
-
-  decideImportRow(row: number, decision: "Include" | "Merge reviewed duplicate" | "Exclude") {
-    const record = this.importRows.find((item) => item.row === row);
-    if (!record) return undefined;
-    if (record.finding.includes("Invalid") && decision !== "Exclude") return undefined;
-    record.decision = decision;
-    return clone(record);
-  }
-
-  applyImport() {
-    if (this.importRows.some((row) => row.decision === "Human review")) return undefined;
-    return {
-      included: this.importRows.filter((row) => row.decision === "Include").length,
-      merged: this.importRows.filter((row) => row.decision === "Merge reviewed duplicate").length,
-      excluded: this.importRows.filter((row) => row.decision === "Exclude").length,
+  update(section: AdminSection, id: string, input: AdminRecordInput) {
+    const index = this.records.findIndex((record) => record.section === section && record.id === id.toUpperCase());
+    if (index < 0 || section === "audit" || !valid(input)) return undefined;
+    const current = this.records[index];
+    const record: AdminRecord = {
+      ...clone(input),
+      id: current.id,
+      section,
+      history: [...current.history, `Record updated by ${input.owner}`],
+      immutable: false,
     };
+    this.records[index] = record;
+    this.appendAudit("Administrative record updated", record, "Update record");
+    return clone(record);
+  }
+
+  duplicate(section: AdminSection, id: string) {
+    const source = this.records.find((record) => record.section === section && record.id === id.toUpperCase());
+    if (!source || section === "audit") return undefined;
+    return this.create(section, {
+      ...clone(source),
+      title: `${source.title} — Copy`,
+      status: this.initialStatus(section),
+      createdAt: "2026-09-20",
+      updatedAt: "2026-09-20",
+    });
+  }
+
+  transition(section: AdminSection, id: string, action: AdminAction, reason: string) {
+    const record = this.records.find((item) => item.section === section && item.id === id.toUpperCase());
+    if (!record || record.immutable || reason.trim().length < 8) return undefined;
+    const next = this.nextStatus(record, action);
+    if (!next) return undefined;
+    record.status = next;
+    record.updatedAt = "2026-09-20";
+    record.history.push(`${this.actionLabel(action)}: ${reason.trim()}`);
+    this.appendAudit(`Administrative action: ${this.actionLabel(action)}`, record, reason.trim());
+    return clone(record);
+  }
+
+  private nextStatus(record: AdminRecord, action: AdminAction) {
+    const { section, status } = record;
+    if (section === "users") {
+      if (action === "activate" && ["Pending activation", "Suspended", "Deactivated"].includes(status)) return "Active";
+      if (action === "suspend" && status === "Active") return "Suspended";
+      if (action === "deactivate" && status !== "Deactivated") return "Deactivated";
+    }
+    if (section === "access") {
+      if (action === "approve" && status === "Requested") return "Active";
+      if (action === "reject" && status === "Requested") return "Rejected";
+      if (action === "revoke" && ["Active", "Approved"].includes(status)) return "Revoked";
+    }
+    if (section === "settings") {
+      if (action === "validate" && ["Draft", "Returned", "Validation failed"].includes(status)) return "Validated";
+      if (action === "approve" && status === "Validated") return "Approved";
+      if (action === "activate" && status === "Approved") return "Active";
+      if (action === "return" && status !== "Active") return "Returned";
+    }
+    if (section === "privacy") {
+      if (action === "assign" && ["Received", "Assigned"].includes(status)) return "Assigned";
+      if (action === "hold" && status !== "Completed") return "On hold";
+      if (action === "release" && status === "On hold") return "In review";
+      if (action === "complete" && ["Assigned", "In review"].includes(status)) return "Completed";
+    }
+    if (section === "messages") {
+      if (action === "send" && ["Draft", "Queued"].includes(status)) return "Delivered";
+      if (action === "retry" && status === "Delivery failed") return "Delivered";
+      if (action === "cancel" && !["Delivered", "Cancelled"].includes(status)) return "Cancelled";
+    }
+    if (section === "integrations") {
+      if (action === "verify" && status !== "Disabled") return "Active";
+      if (action === "disable" && status !== "Disabled") return "Disabled";
+      if (action === "enable" && status === "Disabled") return "Active";
+    }
+    if (section === "operations") {
+      if (action === "assign" && ["Investigating", "Open"].includes(status)) return "Assigned";
+      if (action === "resolve" && !["Resolved", "Healthy"].includes(status)) return "Resolved";
+      if (action === "reopen" && status === "Resolved") return "Investigating";
+    }
+    if (section === "imports") {
+      if (action === "validate" && status === "Needs review") return "Validated";
+      if (action === "apply" && status === "Validated") return "Applied";
+      if (action === "cancel" && status !== "Applied") return "Cancelled";
+    }
+    return undefined;
+  }
+
+  private initialStatus(section: AdminSection) {
+    if (section === "users") return "Pending activation";
+    if (section === "access") return "Requested";
+    if (section === "settings") return "Draft";
+    if (section === "privacy") return "Received";
+    if (section === "messages") return "Draft";
+    if (section === "integrations") return "Disabled";
+    if (section === "operations") return "Open";
+    if (section === "imports") return "Needs review";
+    return "Recorded";
+  }
+
+  private actionLabel(action: AdminAction) {
+    return action.charAt(0).toUpperCase() + action.slice(1);
+  }
+
+  private appendAudit(title: string, record: AdminRecord, purpose: string) {
+    const sequence = this.records.filter((item) => item.section === "audit").length + 1;
+    this.records.unshift({
+      id: `AUD-2026-${String(sequence).padStart(3, "0")}`,
+      section: "audit",
+      title,
+      subtitle: `${record.section} · ${record.id}`,
+      office: record.office,
+      owner: record.owner,
+      status: "Recorded",
+      priority: record.priority,
+      createdAt: "2026-09-20 10:00",
+      updatedAt: "2026-09-20 10:00",
+      description: `${title} for ${record.title}.`,
+      reference: record.id,
+      scope: record.scope,
+      channel: "Administration",
+      target: record.target,
+      tags: ["Administration", record.section],
+      history: [`Event recorded with purpose: ${purpose}`],
+      immutable: true,
+    });
   }
 }
 
-export const adminRepository = new AdminRepository();
+const browserRegistry =
+  typeof window === "undefined" ? undefined : (window as typeof window & { __matnogAdminRepository?: AdminRepository });
+
+function getAdminRepository() {
+  if (!browserRegistry) return new AdminRepository();
+  if (!browserRegistry.__matnogAdminRepository) browserRegistry.__matnogAdminRepository = new AdminRepository();
+  return browserRegistry.__matnogAdminRepository;
+}
+
+export const adminRepository = getAdminRepository();

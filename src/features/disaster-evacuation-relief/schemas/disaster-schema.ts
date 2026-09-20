@@ -5,7 +5,17 @@ const dateTime = z.string().trim().min(10, "Enter a valid date and time.");
 
 export const activitySchema = z.object({
   name: requiredText("Activity name"),
-  type: z.enum(["Typhoon", "Flood", "Storm surge", "Landslide", "Fire", "Earthquake", "Maritime incident"]),
+  type: z.enum([
+    "Typhoon",
+    "Flood",
+    "Storm surge",
+    "Tsunami",
+    "Landslide",
+    "Fire",
+    "Earthquake",
+    "Volcanic activity",
+    "Maritime incident",
+  ]),
   status: z.enum(["Monitoring", "Active response", "Contained", "Closed"]),
   priority: z.enum(["Low", "Moderate", "High", "Critical"]),
   leadOffice: requiredText("Lead office"),

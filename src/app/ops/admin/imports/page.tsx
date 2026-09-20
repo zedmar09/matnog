@@ -1,5 +1,5 @@
-import { AdminWorkspaceView } from "@/features/platform-administration/views/admin-workspaces";
+import { AdminDirectoryView } from "@/features/platform-administration/views/admin-directory-view";
 
 export default function Page() {
-  return <AdminWorkspaceView kind="imports" />;
+  return <AdminDirectoryView section="imports" />;
 }

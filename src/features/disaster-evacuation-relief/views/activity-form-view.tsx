@@ -28,9 +28,11 @@ const TYPES: ActivityType[] = [
   "Typhoon",
   "Flood",
   "Storm surge",
+  "Tsunami",
   "Landslide",
   "Fire",
   "Earthquake",
+  "Volcanic activity",
   "Maritime incident",
 ];
 const STATUSES: ActivityStatus[] = ["Monitoring", "Active response", "Contained", "Closed"];
@@ -52,7 +54,13 @@ const BLANK: ActivityValues = {
 const inputDate = (value: string) => value.replace(" ", "T").slice(0, 16);
 const storedDate = (value: string) => value.replace("T", " ");
 
-export function ActivityFormView({ activityId }: { activityId?: string }) {
+export function ActivityFormView({
+  activityId,
+  initialValues,
+}: {
+  activityId?: string;
+  initialValues?: Partial<ActivityValues>;
+}) {
   const { role } = useWorkspaceSession();
   const router = useRouter();
   const [values, setValues] = useState<ActivityValues | null>();
@@ -60,7 +68,7 @@ export function ActivityFormView({ activityId }: { activityId?: string }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!activityId) return setValues(BLANK);
+    if (!activityId) return setValues({ ...BLANK, ...initialValues });
     const activity = repository.activity(activityId);
     if (!activity) return setValues(null);
     setValues({
@@ -76,7 +84,7 @@ export function ActivityFormView({ activityId }: { activityId?: string }) {
       summary: activity.summary,
       advisoryReference: activity.advisoryReference,
     });
-  }, [activityId]);
+  }, [activityId, initialValues]);
 
   if (role !== "municipal" && role !== "barangay")
     return (

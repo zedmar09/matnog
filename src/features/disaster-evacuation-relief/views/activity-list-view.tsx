@@ -24,9 +24,11 @@ const TYPES: ActivityType[] = [
   "Typhoon",
   "Flood",
   "Storm surge",
+  "Tsunami",
   "Landslide",
   "Fire",
   "Earthquake",
+  "Volcanic activity",
   "Maritime incident",
 ];
 

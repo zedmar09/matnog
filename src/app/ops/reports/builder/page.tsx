@@ -1,5 +1,5 @@
-import { ReportBuilderView } from "@/features/gis-reporting-oversight/views/insight-workspaces";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ReportBuilderView />;
+  redirect("/ops/reports/new");
 }

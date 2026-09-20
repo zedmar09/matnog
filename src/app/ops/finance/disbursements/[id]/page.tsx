@@ -1,5 +1,5 @@
-import { BudgetAccountingWorkspace } from "@/features/budget-accounting/views/budget-accounting-workspace";
+import { BudgetRecordView } from "@/features/budget-accounting/views/budget-record-view";
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <BudgetAccountingWorkspace screen="disbursement" recordId={id} />;
+  return <BudgetRecordView kind="disbursement" recordId={id} />;
 }

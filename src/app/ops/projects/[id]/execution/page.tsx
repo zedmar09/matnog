@@ -1,5 +1,5 @@
-import { ProjectMonitoringWorkspace } from "@/features/projects-procurement-monitoring/views/project-monitoring-workspace";
+import { ProjectDetailView } from "@/features/projects-procurement-monitoring/views/project-detail-view";
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <ProjectMonitoringWorkspace screen="execution" recordId={id} />;
+  return <ProjectDetailView projectId={id} section="execution" />;
 }

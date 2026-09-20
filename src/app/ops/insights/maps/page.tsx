@@ -1,5 +1,4 @@
-import { InsightMapsView } from "@/features/gis-reporting-oversight/views/insight-workspaces";
-
+import { LayerListView } from "@/features/gis-reporting-oversight/views/analytics-list-views";
 export default function Page() {
-  return <InsightMapsView />;
+  return <LayerListView />;
 }

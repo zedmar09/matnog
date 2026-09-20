@@ -1,4 +1,11 @@
-export type ProjectStage = "readiness" | "procurement" | "execution" | "suspended" | "completion" | "accepted";
+export type ProjectStage =
+  | "readiness"
+  | "procurement"
+  | "execution"
+  | "suspended"
+  | "completion"
+  | "accepted"
+  | "archived";
 export type GateState = "complete" | "missing" | "expired" | "not-applicable";
 export type ProjectGate = {
   id: string;
@@ -39,6 +46,7 @@ export type ProjectBilling = {
 export type ProjectRecord = {
   id: string;
   title: string;
+  scope: string;
   barangay: string;
   office: string;
   year: number;

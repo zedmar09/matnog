@@ -1,4 +1,4 @@
-import { DevelopmentPlanningWorkspace } from "@/features/development-planning/views/development-planning-workspace";
+import { PlanningProposalFormView } from "@/features/development-planning/views/planning-proposal-form-view";
 export default function Page() {
-  return <DevelopmentPlanningWorkspace screen="proposal-new" />;
+  return <PlanningProposalFormView />;
 }

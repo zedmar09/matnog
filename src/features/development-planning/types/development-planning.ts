@@ -5,7 +5,8 @@ export type PlanningStatus =
   | "prioritized"
   | "deferred"
   | "approved-unfunded"
-  | "project-linked";
+  | "project-linked"
+  | "archived";
 
 export type EvidenceCoverage = {
   snapshotId: string;

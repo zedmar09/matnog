@@ -1,5 +1,5 @@
-import { ContentQueueView } from "@/features/public-information-transparency/views/publication-views";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ContentQueueView />;
+  redirect("/ops/content/publications");
 }

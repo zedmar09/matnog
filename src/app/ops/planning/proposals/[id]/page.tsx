@@ -1,5 +1,5 @@
-import { DevelopmentPlanningWorkspace } from "@/features/development-planning/views/development-planning-workspace";
+import { PlanningProposalDetailView } from "@/features/development-planning/views/planning-proposal-detail-view";
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <DevelopmentPlanningWorkspace screen="proposal" recordId={id} />;
+  return <PlanningProposalDetailView proposalId={id} />;
 }

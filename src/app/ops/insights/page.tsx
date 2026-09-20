@@ -1,5 +1,4 @@
-import { InsightsOverviewView } from "@/features/gis-reporting-oversight/views/insight-workspaces";
-
+import { AnalyticsOverviewView } from "@/features/gis-reporting-oversight/views/analytics-overview-view";
 export default function Page() {
-  return <InsightsOverviewView />;
+  return <AnalyticsOverviewView />;
 }

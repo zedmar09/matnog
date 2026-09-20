@@ -4,9 +4,11 @@ export type ActivityType =
   | "Typhoon"
   | "Flood"
   | "Storm surge"
+  | "Tsunami"
   | "Landslide"
   | "Fire"
   | "Earthquake"
+  | "Volcanic activity"
   | "Maritime incident";
 
 export type DisasterActivity = {

@@ -1,4 +1,4 @@
-import { DevelopmentPlanningWorkspace } from "@/features/development-planning/views/development-planning-workspace";
+import { BarangayPlanListView } from "@/features/development-planning/views/barangay-plan-list-view";
 export default function Page() {
-  return <DevelopmentPlanningWorkspace screen="barangay-plans" />;
+  return <BarangayPlanListView />;
 }

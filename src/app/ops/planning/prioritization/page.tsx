@@ -1,4 +1,4 @@
-import { DevelopmentPlanningWorkspace } from "@/features/development-planning/views/development-planning-workspace";
+import { PlanningPrioritiesView } from "@/features/development-planning/views/planning-priorities-view";
 export default function Page() {
-  return <DevelopmentPlanningWorkspace screen="prioritization" />;
+  return <PlanningPrioritiesView />;
 }

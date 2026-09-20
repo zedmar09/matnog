@@ -1,5 +1,5 @@
-import { AdminWorkspaceView } from "@/features/platform-administration/views/admin-workspaces";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AdminWorkspaceView kind="notifications" />;
+  redirect("/ops/admin/messages");
 }

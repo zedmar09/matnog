@@ -1,4 +1,4 @@
-import { BudgetAccountingWorkspace } from "@/features/budget-accounting/views/budget-accounting-workspace";
+import { redirect } from "next/navigation";
 export default function Page() {
-  return <BudgetAccountingWorkspace screen="revenue" />;
+  redirect("/ops/finance/reconciliation");
 }

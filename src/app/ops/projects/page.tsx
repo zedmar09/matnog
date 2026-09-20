@@ -1,4 +1,4 @@
-import { ProjectMonitoringWorkspace } from "@/features/projects-procurement-monitoring/views/project-monitoring-workspace";
+import { ProjectListView } from "@/features/projects-procurement-monitoring/views/project-list-view";
 export default function Page() {
-  return <ProjectMonitoringWorkspace screen="portfolio" />;
+  return <ProjectListView />;
 }
