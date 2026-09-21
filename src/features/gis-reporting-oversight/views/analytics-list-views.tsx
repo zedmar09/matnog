@@ -820,11 +820,18 @@ export function ReportListView() {
             Manage report definitions, schedules, responsible offices, selected fields, formats, and generation history.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/ops/reports/new">
-            <Plus /> New report
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/ops/insights/dashboards">
+              <BarChart3 /> Graphical dashboard
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/ops/reports/new">
+              <Plus /> New report
+            </Link>
+          </Button>
+        </div>
       </div>
       <Notice text={notice} />
       <AnalyticsSummary

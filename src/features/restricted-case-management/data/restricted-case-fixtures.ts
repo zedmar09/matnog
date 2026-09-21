@@ -3,6 +3,7 @@ import type { CaseAccessAssignment, CaseRecord, DisclosureDecision } from "../ty
 export const CASE_RECORDS: readonly CaseRecord[] = [
   {
     id: "CASE-KP-2026-014",
+    participantPersonIds: ["DEMO-PER-002"],
     caseClass: "Barangay justice",
     discreetLabel: "Mediation matter 2026-014",
     scope: "Poblacion",
@@ -44,6 +45,7 @@ export const CASE_RECORDS: readonly CaseRecord[] = [
   },
   {
     id: "CASE-VAWC-2026-009",
+    participantPersonIds: ["DEMO-PER-003"],
     caseClass: "VAWC referral",
     discreetLabel: "Protected referral 2026-009",
     scope: "Camcaman",

@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 
 import { ArrowLeft, Save } from "lucide-react";
 
+import { REGISTRY_ACTORS } from "@/features/resident-household-registry/services/registry-projections";
+import {
+  type HouseholdRecordOption,
+  listHouseholdRecordOptions,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { FormField } from "@/shared/components/form-field";
@@ -40,6 +45,24 @@ export function AssessmentFormView({
   const [values, setValues] = useState<AssessmentValues | null>();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [saving, setSaving] = useState(false);
+  const [registryHouseholds, setRegistryHouseholds] = useState<HouseholdRecordOption[]>([]);
+
+  useEffect(() => {
+    const actor =
+      role === "municipal"
+        ? REGISTRY_ACTORS["data-steward"]
+        : role === "barangay"
+          ? REGISTRY_ACTORS["barangay-staff"]
+          : null;
+    if (!actor) return;
+    let active = true;
+    void listHouseholdRecordOptions(actor).then((result) => {
+      if (active && result.kind === "success") setRegistryHouseholds(result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [role]);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -91,6 +114,10 @@ export function AssessmentFormView({
   }
   function save() {
     if (!values || saving) return;
+    if (!assessmentId && !registryHouseholds.some((household) => household.householdId === values.householdId)) {
+      setErrors([{ id: "householdId", message: "Choose a household from the municipal resident registry." }]);
+      return;
+    }
     const parsed = assessmentSchema.safeParse({ ...values, assessedAt: storedDate(values.assessedAt) });
     if (!parsed.success)
       return setErrors(
@@ -123,6 +150,45 @@ export function AssessmentFormView({
         />
         <div className="mt-6">
           <FormSection title="Assessment subject">
+            <FormField
+              id="registryHousehold"
+              label="Municipal registry household"
+              hint="New assessments use the permanent M01 household and structure references."
+            >
+              {(field) => (
+                <Select
+                  value={
+                    registryHouseholds.some((row) => row.householdId === values.householdId) ? values.householdId : ""
+                  }
+                  onValueChange={(id) => {
+                    const row = registryHouseholds.find((household) => household.householdId === id);
+                    if (!row) return;
+                    setValues((current) =>
+                      current
+                        ? {
+                            ...current,
+                            householdId: row.householdId,
+                            residentName: row.label,
+                            barangay: row.barangay?.label ?? "",
+                            structureId: row.structureId ?? "",
+                          }
+                        : current,
+                    );
+                  }}
+                >
+                  <SelectTrigger id={field.id} className="form-select-trigger">
+                    <SelectValue placeholder="Choose a registered household" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {registryHouseholds.map((row) => (
+                      <SelectItem key={row.householdId} value={row.householdId}>
+                        {row.label} · {row.householdId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </FormField>
             <FormField id="activityId" label="Activity" required>
               {(field) => (
                 <Select value={values.activityId} onValueChange={(next) => set("activityId", next)}>
@@ -145,6 +211,7 @@ export function AssessmentFormView({
                   {...field}
                   value={values.householdId}
                   placeholder="HH-MAT-01120"
+                  readOnly={!assessmentId || registryHouseholds.some((row) => row.householdId === values.householdId)}
                   onChange={(event) => set("householdId", event.target.value)}
                 />
               )}
@@ -154,13 +221,19 @@ export function AssessmentFormView({
                 <Input
                   {...field}
                   value={values.residentName}
+                  readOnly={!assessmentId || registryHouseholds.some((row) => row.householdId === values.householdId)}
                   onChange={(event) => set("residentName", event.target.value)}
                 />
               )}
             </FormField>
             <FormField id="barangay" label="Barangay" required>
               {(field) => (
-                <Input {...field} value={values.barangay} onChange={(event) => set("barangay", event.target.value)} />
+                <Input
+                  {...field}
+                  value={values.barangay}
+                  readOnly={!assessmentId || registryHouseholds.some((row) => row.householdId === values.householdId)}
+                  onChange={(event) => set("barangay", event.target.value)}
+                />
               )}
             </FormField>
             <FormField id="structureId" label="Structure reference" required>
@@ -169,6 +242,7 @@ export function AssessmentFormView({
                   {...field}
                   value={values.structureId}
                   placeholder="STR-MAT-01120"
+                  readOnly={!assessmentId || registryHouseholds.some((row) => row.householdId === values.householdId)}
                   onChange={(event) => set("structureId", event.target.value)}
                 />
               )}

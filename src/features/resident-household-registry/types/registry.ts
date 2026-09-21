@@ -125,6 +125,7 @@ export type Household = MunicipalRecord & {
 
 export type Structure = MunicipalRecord & {
   barangay: BarangayRef;
+  sitio: string;
   purok: string;
   street: string;
   houseNumber: string;

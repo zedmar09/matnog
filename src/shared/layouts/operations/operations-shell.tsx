@@ -92,7 +92,7 @@ export const ROLE_NAMES: Record<WorkspaceRole, string> = {
   municipal: "Municipal staff",
   barangay: "Barangay staff",
   partner: "Tourism partner",
-  enumerator: "Enumerator",
+  enumerator: "Field Surveyor",
 };
 
 function WorkspaceSidebar() {

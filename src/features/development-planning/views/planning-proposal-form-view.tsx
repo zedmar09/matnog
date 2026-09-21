@@ -1,23 +1,30 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ArrowLeft, Plus, Save } from "lucide-react";
 
+import { REGISTRY_ACTORS } from "@/features/resident-household-registry/services/registry-projections";
+import {
+  type RegistryRollupRow,
+  readRegistryRollup,
+} from "@/features/resident-household-registry/services/registry-rollup";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { EmptyState } from "@/shared/components/empty-state";
 import { FormField } from "@/shared/components/form-field";
 import { PermissionState } from "@/shared/components/permission-state";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { NativeSelect } from "@/shared/components/ui/native-select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useWorkspaceSession } from "@/shared/providers/workspace-session-provider";
 
 import { developmentPlanningRepository as repository } from "../services/development-planning-repository";
 import { displayPlanningReference, splitLines } from "../services/planning-presentation";
+import type { EvidenceCoverage } from "../types/development-planning";
 
 export function PlanningProposalFormView({ proposalId }: { proposalId?: string }) {
   const { role } = useWorkspaceSession();
@@ -33,7 +40,28 @@ export function PlanningProposalFormView({ proposalId }: { proposalId?: string }
   const [barangay, setBarangay] = useState(record?.barangay ?? "");
   const [tags, setTags] = useState(record?.tags.join(", ") ?? "");
   const [evidence, setEvidence] = useState(record?.evidence.snapshotId ?? "");
+  const [rollups, setRollups] = useState<RegistryRollupRow[]>([]);
+  const [selectedRollup, setSelectedRollup] = useState("");
+  const [registryEvidence, setRegistryEvidence] = useState<EvidenceCoverage>();
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const actor =
+      role === "municipal"
+        ? REGISTRY_ACTORS["data-steward"]
+        : role === "barangay"
+          ? REGISTRY_ACTORS["barangay-staff"]
+          : null;
+    if (!actor) return;
+    let active = true;
+    void readRegistryRollup(actor).then((result) => {
+      if (!active || result.kind !== "success") return;
+      setRollups(result.data.filter((row) => row.residentCount > 0));
+    });
+    return () => {
+      active = false;
+    };
+  }, [role]);
   if (!role || !["municipal", "barangay"].includes(role))
     return (
       <PermissionState
@@ -67,6 +95,12 @@ export function PlanningProposalFormView({ proposalId }: { proposalId?: string }
       barangay,
       tags: splitLines(tags),
       evidenceSnapshotId: evidence,
+      evidenceSnapshot:
+        registryEvidence?.snapshotId === evidence &&
+        registryEvidence.source === "M01 municipal resident registry" &&
+        rollups.some((row) => row.barangay.label === barangay && row.snapshotId === evidence)
+          ? registryEvidence
+          : undefined,
     };
     const saved = record ? repository.updateProposal(record.id, input) : repository.createProposal(input);
     if (!saved) {
@@ -92,6 +126,52 @@ export function PlanningProposalFormView({ proposalId }: { proposalId?: string }
         </div>
       </div>
       <ContentPanel as="section">
+        {rollups.length > 0 && (
+          <div className="mb-5 rounded-xl border p-4">
+            <h2 className="font-semibold">Resident registry evidence</h2>
+            <p className="text-muted-foreground text-sm">
+              Use a dated M01 aggregate as planning evidence. The selected counts are copied into this proposal and do
+              not change when the registry changes later.
+            </p>
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="form-field min-w-64 flex-1">
+                <span className="form-label">Barangay snapshot</span>
+                <NativeSelect value={selectedRollup} onChange={(event) => setSelectedRollup(event.target.value)}>
+                  <option value="">Select a barangay</option>
+                  {rollups.map((row) => (
+                    <option key={row.snapshotId} value={row.snapshotId}>
+                      {row.barangay.label} · {row.residentCount} residents · {row.asOf}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!selectedRollup}
+                onClick={() => {
+                  const row = rollups.find((item) => item.snapshotId === selectedRollup);
+                  if (!row) return;
+                  setBarangay(row.barangay.label);
+                  setBeneficiaries(String(row.residentCount));
+                  setEvidence(row.snapshotId);
+                  setRegistryEvidence({
+                    snapshotId: row.snapshotId,
+                    source: "M01 municipal resident registry",
+                    collectedAt: row.asOf,
+                    reportedAt: row.asOf,
+                    coverage: `${row.residentCount} current residents in ${row.householdCount} active households; ${row.verifiedResidents} verified resident records`,
+                    beneficiaries: row.residentCount,
+                    denominator: row.residentCount,
+                    caveat: "Fictional local registry snapshot; not an official RBI or CBMS submission.",
+                  });
+                }}
+              >
+                Use snapshot
+              </Button>
+            </div>
+          </div>
+        )}
         <form className="grid gap-5 sm:grid-cols-2" onSubmit={submit}>
           <label className="form-field sm:col-span-2">
             <span className="form-label">Development problem</span>

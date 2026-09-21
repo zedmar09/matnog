@@ -292,6 +292,10 @@ export function HouseholdDetailView({ householdId }: { householdId: string }) {
                   </dd>
                 </div>
                 <div>
+                  <dt>Sitio</dt>
+                  <dd>{structure.sitio || "Not recorded"}</dd>
+                </div>
+                <div>
                   <dt>Purok</dt>
                   <dd>{structure.purok}</dd>
                 </div>

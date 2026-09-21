@@ -97,6 +97,11 @@ export function AssessmentDetailView({ assessmentId }: { assessmentId: string })
             <Fact label="Assessor" value={item.assessor} />
             <Fact label="Activity" value={activity?.name ?? item.activityId} />
           </dl>
+          {item.householdId.startsWith("DEMO-HH-") && (
+            <Link className="mt-4 inline-block text-link" href={`/ops/households/${item.householdId}`}>
+              Open municipal household record
+            </Link>
+          )}
         </ContentPanel>
         <ContentPanel as="aside">
           <ClipboardCheck className="text-primary" />

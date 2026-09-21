@@ -77,7 +77,7 @@ export function HouseholdEditView({ householdId }: { householdId: string }) {
         barangayId: structure?.barangay.id ?? BARANGAYS[0]?.id ?? "",
         houseNumber: structure?.houseNumber ?? "",
         street: structure?.street ?? "",
-        sitio: "",
+        sitio: structure?.sitio ?? "",
         purok: structure?.purok ?? "",
       });
     });

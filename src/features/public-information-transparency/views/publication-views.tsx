@@ -424,6 +424,18 @@ export function TransparencyView() {
         description="Disclosure summaries, ordinances and procurement references, listed by the office that issued them."
       />
 
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-primary/[.035] p-4">
+        <div>
+          <strong className="block">Explore public information in charts</strong>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Arrange published notices and disclosure summaries in your own dashboard.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/transparency/dashboard">Open dashboard</Link>
+        </Button>
+      </div>
+
       <div className="pub-filters">
         <fieldset className="pub-filter-group">
           <legend className="pub-filter-label">Status</legend>

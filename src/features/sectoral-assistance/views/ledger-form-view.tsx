@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 
 import { ArrowLeft, Save } from "lucide-react";
 
+import { REGISTRY_ACTORS } from "@/features/resident-household-registry/services/registry-projections";
+import {
+  listPersonRecordOptions,
+  type PersonRecordOption,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { FormField } from "@/shared/components/form-field";
@@ -51,6 +56,24 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
   const [values, setValues] = useState<LedgerEntryValues | null>();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [saving, setSaving] = useState(false);
+  const [residentOptions, setResidentOptions] = useState<PersonRecordOption[]>([]);
+
+  useEffect(() => {
+    const actor =
+      role === "municipal"
+        ? REGISTRY_ACTORS["data-steward"]
+        : role === "barangay"
+          ? REGISTRY_ACTORS["barangay-staff"]
+          : null;
+    if (!actor) return;
+    let active = true;
+    void listPersonRecordOptions(actor).then((result) => {
+      if (active) setResidentOptions(result.kind === "success" ? result.data : []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [role]);
 
   useEffect(() => {
     if (!entryId) {
@@ -111,6 +134,32 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
 
   function save() {
     if (!values || saving) return;
+    if (!entryId) {
+      const linked = repository.request(values.requestId);
+      if (!linked) {
+        setErrors([{ id: "requestId", message: "Choose an assistance request ready for release." }]);
+        return;
+      }
+      const program = repository.programs.find((item) => item.id === linked.programId);
+      const expectedRecipient = program?.recipientUnit === "person" ? linked.personId : linked.householdId;
+      if (
+        linked.status !== "Ready for release" ||
+        !residentOptions.some((item) => item.personId === linked.personId) ||
+        repository.ledger.some((item) => item.requestId === linked.id) ||
+        values.recipient !== expectedRecipient ||
+        values.program !== linked.programName ||
+        values.period !== linked.period
+      ) {
+        setErrors([
+          {
+            id: "requestId",
+            message:
+              "Choose an in-scope request ready for release. Its recipient, program and period must stay linked.",
+          },
+        ]);
+        return;
+      }
+    }
     const parsed = ledgerEntrySchema.safeParse({ ...values, releasedAt: storedDateTime(values.releasedAt) });
     if (!parsed.success) {
       setErrors(parsed.error.issues.map((issue) => ({ id: String(issue.path[0] ?? "form"), message: issue.message })));
@@ -132,6 +181,36 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
     ...new Set([...repository.programs.map((item) => item.name), ...repository.ledger.map((item) => item.program)]),
   ];
   const fundOptions = [...new Set(repository.ledger.map((item) => item.fundSource))];
+  const eligibleRequests = repository.requests.filter(
+    (item) =>
+      item.status === "Ready for release" &&
+      residentOptions.some((person) => person.personId === item.personId) &&
+      !repository.ledger.some((entry) => entry.requestId === item.id),
+  );
+
+  function selectRequest(requestId: string) {
+    const request = repository.request(requestId);
+    if (!request) return;
+    const program = repository.programs.find((item) => item.id === request.programId);
+    const person = residentOptions.find((item) => item.personId === request.personId);
+    const recipient = program?.recipientUnit === "person" ? request.personId : request.householdId;
+    setValues((current) =>
+      current
+        ? {
+            ...current,
+            requestId,
+            recipient,
+            recipientName:
+              program?.recipientUnit === "person"
+                ? (person?.displayName ?? request.personId)
+                : `Household ${request.householdId}`,
+            program: request.programName,
+            period: request.period,
+            value: request.approvedValue ?? request.requestedValue,
+          }
+        : current,
+    );
+  }
 
   return (
     <div className="registry-wizard">
@@ -154,19 +233,30 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
         <div className="mt-6">
           <FormSection title="Linked records">
             <FormField id="requestId" label="Assistance request reference" required>
-              {(field) => (
-                <Input
-                  {...field}
-                  value={values.requestId}
-                  placeholder="DEMO-AID-011"
-                  onChange={(event) => set("requestId", event.target.value)}
-                />
-              )}
+              {(field) =>
+                entryId ? (
+                  <Input {...field} readOnly value={values.requestId} />
+                ) : (
+                  <Select value={values.requestId} onValueChange={selectRequest}>
+                    <SelectTrigger id={field.id} className="form-select-trigger">
+                      <SelectValue placeholder="Choose a request ready for release" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleRequests.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.id} · {item.programName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )
+              }
             </FormField>
             <FormField id="recipient" label="Resident or household reference" required>
               {(field) => (
                 <Input
                   {...field}
+                  readOnly={!entryId}
                   value={values.recipient}
                   placeholder="DEMO-HH-001"
                   onChange={(event) => set("recipient", event.target.value)}
@@ -177,6 +267,7 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
               {(field) => (
                 <Input
                   {...field}
+                  readOnly={!entryId}
                   value={values.recipientName}
                   placeholder="Household or resident name"
                   onChange={(event) => set("recipientName", event.target.value)}
@@ -185,7 +276,7 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
             </FormField>
             <FormField id="program" label="Program" required>
               {(field) => (
-                <Select value={values.program} onValueChange={(next) => set("program", next)}>
+                <Select value={values.program} onValueChange={(next) => set("program", next)} disabled={!entryId}>
                   <SelectTrigger id={field.id} className="form-select-trigger">
                     <SelectValue placeholder="Choose a program" />
                   </SelectTrigger>
@@ -203,6 +294,7 @@ export function LedgerFormView({ entryId }: { entryId?: string }) {
               {(field) => (
                 <Input
                   {...field}
+                  readOnly={!entryId}
                   value={values.period}
                   placeholder="September 2026"
                   onChange={(event) => set("period", event.target.value)}

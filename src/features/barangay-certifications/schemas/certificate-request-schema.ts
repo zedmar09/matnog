@@ -36,7 +36,7 @@ export const certificateRequestSchema = z
       .trim()
       .min(3, "Name the school, office, employer, programme, or transaction requesting the document.")
       .max(120, "Keep the requesting office to 120 characters or fewer."),
-    barangayId: z.enum(["DEMO-BRGY-A", "DEMO-BRGY-B"]),
+    barangayId: z.enum(["DEMO-BRGY-A", "DEMO-BRGY-B", "DEMO-BRGY-C"]),
     claimMethod: z.enum(["barangay-counter", "digital-copy"]),
     evidenceRef: z.enum(certificateEvidenceIds),
   })
@@ -56,7 +56,7 @@ export const certificateDraftSchema = z.object({
   certificateTypeId: z.enum(certificateTypeIds),
   purpose: z.string(),
   requestingOffice: z.string(),
-  barangayId: z.enum(["DEMO-BRGY-A", "DEMO-BRGY-B"]),
+  barangayId: z.enum(["DEMO-BRGY-A", "DEMO-BRGY-B", "DEMO-BRGY-C"]),
   claimMethod: z.enum(["barangay-counter", "digital-copy"]),
   evidenceRef: z.enum(certificateEvidenceIds),
 });

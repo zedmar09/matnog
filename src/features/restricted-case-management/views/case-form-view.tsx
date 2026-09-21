@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 
 import { ArrowLeft, Save } from "lucide-react";
 
+import { REGISTRY_ACTORS } from "@/features/resident-household-registry/services/registry-projections";
+import {
+  listPersonRecordOptions,
+  type PersonRecordOption,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { FormField } from "@/shared/components/form-field";
@@ -16,6 +21,7 @@ import { PermissionState } from "@/shared/components/permission-state";
 import { SectionHeading } from "@/shared/components/section-heading";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { NativeSelect } from "@/shared/components/ui/native-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useWorkspaceSession } from "@/shared/providers/workspace-session-provider";
@@ -30,6 +36,7 @@ const STATUSES: CaseStatus[] = ["New", "Under review", "Scheduled", "Referred", 
 const ELIGIBILITY: CaseRecordValues["certificateEligibility"][] = ["Eligible", "Not eligible", "Pending review"];
 const BLANK: CaseRecordValues = {
   caseClass: "Barangay justice",
+  participantPersonIds: [],
   discreetLabel: "",
   scope: "",
   assignedDesk: "Lupon Tagapamayapa",
@@ -54,6 +61,24 @@ export function CaseFormView({ caseId }: { caseId?: string }) {
   const [values, setValues] = useState<CaseRecordValues | null>();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [saving, setSaving] = useState(false);
+  const [residentOptions, setResidentOptions] = useState<PersonRecordOption[]>([]);
+
+  useEffect(() => {
+    const actor =
+      role === "municipal"
+        ? REGISTRY_ACTORS["data-steward"]
+        : role === "barangay"
+          ? REGISTRY_ACTORS["barangay-staff"]
+          : null;
+    if (!actor) return;
+    let active = true;
+    void listPersonRecordOptions(actor).then((result) => {
+      if (active && result.kind === "success") setResidentOptions(result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [role]);
 
   useEffect(() => {
     if (!caseId) return setValues(BLANK);
@@ -61,6 +86,7 @@ export function CaseFormView({ caseId }: { caseId?: string }) {
     if (!record) return setValues(null);
     setValues({
       ...record,
+      participantPersonIds: record.participantPersonIds ?? [],
       openedAt: inputDate(record.openedAt),
       updatedAt: inputDate(record.updatedAt),
       evidence: record.evidence.join(", "),
@@ -174,6 +200,62 @@ export function CaseFormView({ caseId }: { caseId?: string }) {
             <FormField id="scope" label="Barangay or scope" required>
               {(field) => (
                 <Input {...field} value={values.scope} onChange={(event) => set("scope", event.target.value)} />
+              )}
+            </FormField>
+            <FormField
+              id="participantPersonIds"
+              label="Linked resident participants"
+              hint="These IDs remain inside the restricted case workspace."
+            >
+              {(field) => (
+                <>
+                  <NativeSelect
+                    {...field}
+                    value=""
+                    onChange={(event) => {
+                      const personId = event.target.value;
+                      if (personId && !values.participantPersonIds.includes(personId)) {
+                        set("participantPersonIds", [...values.participantPersonIds, personId]);
+                      }
+                    }}
+                  >
+                    <option value="">Add a resident</option>
+                    {residentOptions
+                      .filter((person) => !values.participantPersonIds.includes(person.personId))
+                      .map((person) => (
+                        <option key={person.personId} value={person.personId}>
+                          {person.displayName} · {person.personId}
+                        </option>
+                      ))}
+                  </NativeSelect>
+                  {values.participantPersonIds.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {values.participantPersonIds.map((personId) => (
+                        <li
+                          key={personId}
+                          className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                        >
+                          <span>
+                            {residentOptions.find((person) => person.personId === personId)?.displayName ?? "Resident"}{" "}
+                            · {personId}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                              set(
+                                "participantPersonIds",
+                                values.participantPersonIds.filter((id) => id !== personId),
+                              )
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </FormField>
             <FormField id="assignedDesk" label="Assigned desk" required>

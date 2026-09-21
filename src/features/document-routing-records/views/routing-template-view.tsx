@@ -43,7 +43,7 @@ export function RoutingTemplateView() {
     return (
       <PermissionState
         title="Routing templates are limited to municipal administrators"
-        description="Barangay, partner, and enumerator roles can use assigned tasks but cannot change routing configuration."
+        description="Barangay, partner, and Field Surveyor roles can use assigned tasks but cannot change routing configuration."
       />
     );
   }

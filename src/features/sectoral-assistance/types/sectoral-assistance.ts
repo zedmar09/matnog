@@ -1,4 +1,5 @@
-export type SectorCategory = "Senior" | "PWD" | "Solo parent" | "Youth";
+export const SECTOR_CATEGORIES = ["Senior", "PWD", "Solo parent", "Youth", "4Ps", "IP", "OSY"] as const;
+export type SectorCategory = (typeof SECTOR_CATEGORIES)[number];
 export type AssistanceStatus = "Under assessment" | "Duplicate review" | "Ready for release" | "Released" | "Denied";
 export type BenefitLedgerStatus = "Released" | "Pending confirmation" | "Cancelled";
 

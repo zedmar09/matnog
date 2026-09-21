@@ -74,7 +74,7 @@ export function ResidentDirectoryView() {
     return (
       <PermissionState
         title="The registry is not part of this workspace"
-        description="The tourism partner role has no resident registry access. Switch to a municipal, barangay, or enumerator demo role from the workspace overview."
+        description="The tourism partner role has no resident registry access. Switch to a municipal, barangay, or Field Surveyor role from the workspace overview."
         action={
           <Button asChild variant="outline">
             <Link href="/ops">Back to workspace overview</Link>

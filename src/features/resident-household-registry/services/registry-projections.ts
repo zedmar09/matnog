@@ -27,7 +27,7 @@ export const REGISTRY_ACTORS: Record<RegistryPersona, RegistryActor> = {
   "data-steward": { persona: "data-steward", label: "Municipal data steward" },
   enumerator: {
     persona: "enumerator",
-    label: "Enumerator",
+    label: "Field Surveyor",
     barangayId: "DEMO-BRGY-A",
     assignedHouseholdIds: ["DEMO-HH-003"],
   },

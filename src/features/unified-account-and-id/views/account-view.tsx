@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -6,6 +7,10 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, FileText, LogOut, UserRound } from "lucide-react";
 
 import { PUBLIC_REQUESTS } from "@/features/request-tracking/data/requests";
+import {
+  type OwnResidentProfile,
+  readOwnResidentProfile,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel, PanelDivider } from "@/shared/components/content-panel";
 import { EmptyState } from "@/shared/components/empty-state";
 import { PageHeader } from "@/shared/components/page-header";
@@ -13,6 +18,7 @@ import { RecordCard } from "@/shared/components/record-card";
 import { SectionHeading } from "@/shared/components/section-heading";
 import { StatusBadge } from "@/shared/components/status-badge";
 import { Button } from "@/shared/components/ui/button";
+import type { RepositoryResult } from "@/shared/data/repository-result";
 import { useDemoSession } from "@/shared/providers/demo-session-provider";
 
 import { buildSignInPath } from "../services/account-navigation";
@@ -29,6 +35,19 @@ const ACCOUNT_STATE_PRESENTATION = {
 export function AccountView() {
   const { session, ready, signOut } = useDemoSession();
   const router = useRouter();
+  const personId = session?.residentAssociation?.status === "linked" ? session.residentAssociation.personId : undefined;
+  const [profile, setProfile] = useState<RepositoryResult<OwnResidentProfile> | null>(null);
+
+  useEffect(() => {
+    if (!personId) return setProfile(null);
+    let active = true;
+    void readOwnResidentProfile(personId).then((result) => {
+      if (active) setProfile(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, [personId]);
 
   if (!ready) {
     return (
@@ -98,55 +117,64 @@ export function AccountView() {
             </StatusBadge>
           </div>
           <PanelDivider />
-          {/* Name, address and household come from the linked registry record.
-              Until a link is reviewed there is nothing to show but the number
-              the account holder verified. */}
+          {/* Profile fields are projected from the linked M01 record. */}
           <dl className="registry-facts">
             <div>
               <dt>Mobile number</dt>
               <dd>{session.phone}</dd>
             </div>
-            {accountState === "verified-resident" && (
+            {accountState === "verified-resident" && profile?.kind === "success" && (
               <>
                 <div>
                   <dt>Full name</dt>
-                  <dd>Mara Reyes Dela Cruz</dd>
+                  <dd>{profile.data.displayName}</dd>
                 </div>
                 <div>
                   <dt>Date of birth</dt>
-                  <dd>12 April 1998</dd>
+                  <dd>{profile.data.birthDate}</dd>
                 </div>
                 <div>
                   <dt>Sex</dt>
-                  <dd>Female</dd>
+                  <dd>{profile.data.sex === "female" ? "Female" : "Male"}</dd>
                 </div>
                 <div>
                   <dt>Civil status</dt>
-                  <dd>Single</dd>
+                  <dd>{profile.data.civilStatus}</dd>
                 </div>
                 <div>
                   <dt>Citizenship</dt>
-                  <dd>Filipino</dd>
+                  <dd>{profile.data.citizenship}</dd>
                 </div>
                 <div>
                   <dt>Occupation</dt>
-                  <dd>Tourism assistant</dd>
+                  <dd>{profile.data.occupation ?? "Not recorded"}</dd>
                 </div>
                 <div>
                   <dt>Barangay</dt>
-                  <dd>Demo Barangay A</dd>
+                  <dd>{profile.data.currentBarangay?.label ?? "No current residency"}</dd>
                 </div>
                 <div>
                   <dt>Residential address</dt>
-                  <dd>Purok 2, Demo Barangay A, Matnog, Sorsogon</dd>
+                  <dd>{profile.data.address ?? "Not recorded"}</dd>
                 </div>
                 <div>
                   <dt>Household record</dt>
-                  <dd>DEMO-HH-001</dd>
+                  <dd>{profile.data.currentHouseholdId ?? "No current household"}</dd>
                 </div>
               </>
             )}
           </dl>
+          {accountState === "verified-resident" && profile === null && (
+            <p className="small-note" role="status">
+              Loading your linked resident record…
+            </p>
+          )}
+          {accountState === "verified-resident" && profile !== null && profile.kind !== "success" && (
+            <p className="small-note" role="status">
+              The linked resident record is unavailable. Your account remains linked, but registry details cannot be
+              shown.
+            </p>
+          )}
           {accountState !== "verified-resident" && (
             <p className="small-note">
               Link a municipal resident record to see your registered name, barangay, address and household here.

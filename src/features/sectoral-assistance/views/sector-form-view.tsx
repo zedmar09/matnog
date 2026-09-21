@@ -5,7 +5,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { PEOPLE } from "@/features/resident-household-registry/data/people";
+import { REGISTRY_ACTORS } from "@/features/resident-household-registry/services/registry-projections";
+import {
+  listPersonRecordOptions,
+  type PersonRecordOption,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { ErrorSummary, type FieldError } from "@/shared/components/error-summary";
 import { FormField } from "@/shared/components/form-field";
@@ -21,8 +25,8 @@ import { useWorkspaceSession } from "@/shared/providers/workspace-session-provid
 
 import { type SectorRecordValues, sectorRecordSchema } from "../schemas/sector-schema";
 import { localSectoralAssistanceRepository as repository } from "../services/local-sectoral-assistance-repository";
+import { SECTOR_CATEGORIES } from "../types/sectoral-assistance";
 
-const CATEGORIES = ["Senior", "PWD", "Solo parent", "Youth"] as const;
 const STATUSES = ["Evidence review", "Active", "Expired", "Deactivated"] as const;
 const OFFICES = [
   "Municipal Social Welfare and Development Office",
@@ -53,6 +57,31 @@ export function SectorFormView({ recordId }: { recordId?: string }) {
   const [values, setValues] = useState<SectorRecordValues | null>();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [saving, setSaving] = useState(false);
+  const [residentOptions, setResidentOptions] = useState<PersonRecordOption[]>([]);
+  const [residentLookupError, setResidentLookupError] = useState(false);
+
+  useEffect(() => {
+    const actor =
+      role === "municipal"
+        ? REGISTRY_ACTORS["data-steward"]
+        : role === "barangay"
+          ? REGISTRY_ACTORS["barangay-staff"]
+          : null;
+    if (!actor) return;
+    let active = true;
+    void listPersonRecordOptions(actor).then((result) => {
+      if (!active) return;
+      if (result.kind === "success") {
+        setResidentOptions(result.data);
+        setResidentLookupError(false);
+      } else {
+        setResidentLookupError(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [role]);
 
   useEffect(() => {
     if (!recordId) return setValues(BLANK);
@@ -144,24 +173,29 @@ export function SectorFormView({ recordId }: { recordId?: string }) {
                 <Select
                   value={values.personId}
                   onValueChange={(next) => {
-                    const person = PEOPLE.find((item) => item.envelope.id === next);
+                    const person = residentOptions.find((item) => item.personId === next);
                     set("personId", next);
-                    set("personLabel", person?.envelope.scope.label ?? next);
+                    set("personLabel", person?.displayName ?? next);
                   }}
                 >
                   <SelectTrigger id={field.id} className="form-select-trigger">
                     <SelectValue placeholder="Choose a resident" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PEOPLE.map((person) => (
-                      <SelectItem key={person.envelope.id} value={person.envelope.id}>
-                        {person.envelope.scope.label} · {person.envelope.id}
+                    {residentOptions.map((person) => (
+                      <SelectItem key={person.personId} value={person.personId}>
+                        {person.displayName} · {person.personId}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </FormField>
+            {residentLookupError && (
+              <p className="small-note" role="status">
+                The resident registry is unavailable. Try this form again when its records can be loaded.
+              </p>
+            )}
             <FormField id="category" label="Category" required>
               {(field) => (
                 <Select
@@ -172,7 +206,7 @@ export function SectorFormView({ recordId }: { recordId?: string }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((item) => (
+                    {SECTOR_CATEGORIES.map((item) => (
                       <SelectItem key={item} value={item}>
                         {item}
                       </SelectItem>

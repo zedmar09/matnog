@@ -9,6 +9,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, FileText, Phone } from "lucide-react";
 import { type FieldErrors, useForm } from "react-hook-form";
 
+import { BARANGAYS } from "@/features/resident-household-registry/data/barangays";
+import {
+  type OwnResidentProfile,
+  readOwnResidentProfile,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import {
   type AuthChallenge,
   DEMO_OTP_CODE,
@@ -23,6 +28,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { NativeSelect } from "@/shared/components/ui/native-select";
 import { Textarea } from "@/shared/components/ui/textarea";
+import type { RepositoryResult } from "@/shared/data/repository-result";
 import { useDemoSession } from "@/shared/providers/demo-session-provider";
 
 import { CERTIFICATE_CATALOG } from "../data/certificate-journey";
@@ -35,7 +41,7 @@ import {
 import { certificateRepository } from "../services/certificate-repository";
 
 const PHONE_PATTERN = /^(09\d{9}|\+639\d{9})$/;
-const DEMO_PHONE = "09171234567";
+const DEMO_PHONE = "09170000000";
 
 function collectFieldErrors(errors: FieldErrors<CertificateRequestValues>): FieldError[] {
   return Object.entries(errors).flatMap(([id, error]) =>
@@ -60,6 +66,7 @@ export function CertificateRequestView() {
   const [phoneError, setPhoneError] = useState<string>();
   const [summaryErrors, setSummaryErrors] = useState<FieldError[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [residentProfile, setResidentProfile] = useState<RepositoryResult<OwnResidentProfile> | null>(null);
 
   const {
     register,
@@ -90,6 +97,23 @@ export function CertificateRequestView() {
       setStep(2);
     }
   }, [session?.phone]);
+
+  const linkedPersonId =
+    session?.residentAssociation?.status === "linked" ? session.residentAssociation.personId : undefined;
+  useEffect(() => {
+    if (!linkedPersonId) return setResidentProfile(null);
+    let active = true;
+    void readOwnResidentProfile(linkedPersonId).then((result) => {
+      if (!active) return;
+      setResidentProfile(result);
+      if (result.kind === "success" && result.data.currentBarangay) {
+        setValue("barangayId", result.data.currentBarangay.id as CertificateRequestValues["barangayId"]);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [linkedPersonId, setValue]);
 
   function sendCode() {
     setPhoneError(undefined);
@@ -123,20 +147,47 @@ export function CertificateRequestView() {
     setStep(2);
   }
 
-  const submit = (input: CertificateRequestValues) => {
+  const submit = async (input: CertificateRequestValues) => {
     if (!session) return;
     setSummaryErrors([]);
     setSubmitting(true);
+    if (input.certificateTypeId === "business-clearance") {
+      setSummaryErrors([
+        { id: "certificateTypeId", message: "Select an authorized business requester for a business clearance." },
+      ]);
+      setSubmitting(false);
+      return;
+    }
+    const personId =
+      session.residentAssociation?.status === "linked" ? session.residentAssociation.personId : undefined;
+    const profile = personId ? await readOwnResidentProfile(personId) : null;
+    if (profile?.kind !== "success" || !profile.data.currentBarangay) {
+      setSummaryErrors([
+        {
+          id: "barangayId",
+          message: "An approved resident link and current M01 barangay are required for this request.",
+        },
+      ]);
+      setSubmitting(false);
+      return;
+    }
+    if (input.barangayId !== profile.data.currentBarangay.id) {
+      setSummaryErrors([
+        { id: "barangayId", message: "The issuing barangay must match your current resident record." },
+      ]);
+      setSubmitting(false);
+      return;
+    }
     const result = certificateRepository.submitRequest({
       values: input,
-      requesterId: "DEMO-VIS-001",
+      requesterId: session.accountId,
       requesterLabel: session.name,
       subject: {
         kind: "person",
-        id: session.residentAssociation?.personId ?? "DEMO-VIS-001",
-        label: session.name,
-        barangayId: input.barangayId,
-        barangayLabel: input.barangayId === "DEMO-BRGY-A" ? "Demo Barangay A" : "Demo Barangay B",
+        id: profile.data.personId,
+        label: profile.data.displayName,
+        barangayId: profile.data.currentBarangay.id,
+        barangayLabel: profile.data.currentBarangay.label,
       },
     });
     setSubmitting(false);
@@ -293,14 +344,33 @@ export function CertificateRequestView() {
                   )}
                 </FormField>
 
-                <FormField id="barangayId" label="Your barangay" error={fieldErrors.barangayId?.message}>
+                <input type="hidden" {...register("barangayId")} />
+                <FormField
+                  id="registeredBarangay"
+                  label="Current registered barangay"
+                  error={fieldErrors.barangayId?.message}
+                >
                   {(field) => (
-                    <NativeSelect {...field} {...register("barangayId")} className="w-full">
-                      <option value="DEMO-BRGY-A">Demo Barangay A</option>
-                      <option value="DEMO-BRGY-B">Demo Barangay B</option>
-                    </NativeSelect>
+                    <Input
+                      {...field}
+                      readOnly
+                      value={
+                        residentProfile?.kind === "success"
+                          ? (residentProfile.data.currentBarangay?.label ?? "No current residency")
+                          : linkedPersonId
+                            ? "Checking resident record…"
+                            : "Resident link required"
+                      }
+                    />
                   )}
                 </FormField>
+                {linkedPersonId &&
+                  residentProfile?.kind === "success" &&
+                  !BARANGAYS.some((barangay) => barangay.id === residentProfile.data.currentBarangay?.id) && (
+                    <p className="small-note">
+                      The current barangay has no certificate issuing desk in this local workspace.
+                    </p>
+                  )}
 
                 <FormField id="purpose" label="What is it for?" error={fieldErrors.purpose?.message}>
                   {(field) => (
@@ -361,7 +431,7 @@ export function CertificateRequestView() {
                 <Button type="button" variant="outline" onClick={() => setStep(session ? 0 : 1)}>
                   <ArrowLeft /> Back
                 </Button>
-                <Button type="submit" disabled={!verified || submitting}>
+                <Button type="submit" disabled={!verified || residentProfile?.kind !== "success" || submitting}>
                   {submitting ? "Submitting…" : "Submit request"} <ArrowRight />
                 </Button>
               </div>

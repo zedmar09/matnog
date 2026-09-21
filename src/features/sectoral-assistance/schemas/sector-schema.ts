@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { SECTOR_CATEGORIES } from "../types/sectoral-assistance";
+
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -10,7 +12,7 @@ export const sectorRecordSchema = z
   .object({
     personId: z.string().trim().min(1, "Choose the resident."),
     personLabel: z.string().trim().min(1, "Choose the resident."),
-    category: z.enum(["Senior", "PWD", "Solo parent", "Youth"]),
+    category: z.enum(SECTOR_CATEGORIES),
     authority: z.string().trim().min(3, "Name the issuing office."),
     status: z.enum(["Active", "Expired", "Evidence review", "Deactivated"]),
     validFrom: z.string().trim().min(1, "Give a start date."),

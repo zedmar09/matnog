@@ -1,5 +1,11 @@
 import { BARANGAY_PLANS, MUNICIPAL_PLANS, PLANNING_PROPOSALS } from "../data/development-planning-fixtures";
-import type { BarangayPlan, MunicipalPlan, PlanningProposal, PlanningStatus } from "../types/development-planning";
+import type {
+  BarangayPlan,
+  EvidenceCoverage,
+  MunicipalPlan,
+  PlanningProposal,
+  PlanningStatus,
+} from "../types/development-planning";
 
 export class DevelopmentPlanningRepository {
   private proposals = structuredClone(PLANNING_PROPOSALS);
@@ -46,6 +52,7 @@ export class DevelopmentPlanningRepository {
     barangay: string;
     tags: string[];
     evidenceSnapshotId: string;
+    evidenceSnapshot?: EvidenceCoverage;
   }): PlanningProposal | undefined {
     if (
       input.problem.trim().length < 12 ||
@@ -77,15 +84,18 @@ export class DevelopmentPlanningRepository {
         percent: index === tags.length - 1 ? 100 - attribution * (tags.length - 1) : attribution,
       })),
       status: "draft",
-      evidence: {
-        snapshotId: input.evidenceSnapshotId.trim(),
-        source: "Barangay and municipal planning evidence",
-        collectedAt: "2026-09-15",
-        reportedAt: "2026-09-20",
-        coverage: `${input.beneficiaries} identified beneficiaries`,
-        beneficiaries: input.beneficiaries,
-        denominator: input.beneficiaries,
-      },
+      evidence:
+        input.evidenceSnapshot?.snapshotId === input.evidenceSnapshotId.trim()
+          ? structuredClone(input.evidenceSnapshot)
+          : {
+              snapshotId: input.evidenceSnapshotId.trim(),
+              source: "Barangay and municipal planning evidence",
+              collectedAt: "2026-09-15",
+              reportedAt: "2026-09-20",
+              coverage: `${input.beneficiaries} identified beneficiaries`,
+              beneficiaries: input.beneficiaries,
+              denominator: input.beneficiaries,
+            },
       score: 0,
       criteriaVersion: "MPDO-2026-v2",
       rationale: "Draft proposal prepared for review.",
@@ -107,6 +117,7 @@ export class DevelopmentPlanningRepository {
       barangay: string;
       tags: string[];
       evidenceSnapshotId: string;
+      evidenceSnapshot?: EvidenceCoverage;
     },
   ): PlanningProposal | undefined {
     const record = this.proposals.find((item) => item.id === id);
@@ -127,8 +138,12 @@ export class DevelopmentPlanningRepository {
     record.sourceOffice = input.sourceOffice.trim();
     record.barangay = input.barangay.trim();
     record.tags = input.tags.length ? input.tags : ["General development"];
-    record.evidence.snapshotId = input.evidenceSnapshotId.trim();
-    record.evidence.beneficiaries = input.beneficiaries;
+    if (input.evidenceSnapshot?.snapshotId === input.evidenceSnapshotId.trim()) {
+      record.evidence = structuredClone(input.evidenceSnapshot);
+    } else {
+      record.evidence.snapshotId = input.evidenceSnapshotId.trim();
+      record.evidence.beneficiaries = input.beneficiaries;
+    }
     record.version += 1;
     return structuredClone(record);
   }

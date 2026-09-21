@@ -23,7 +23,7 @@ import { sectorDeactivationSchema } from "../schemas/sector-schema";
 import { localSectoralAssistanceRepository as repository } from "../services/local-sectoral-assistance-repository";
 import type { SectorDeactivation, SectorRecord } from "../types/sectoral-assistance";
 
-const CATEGORIES = ["Senior", "PWD", "Solo parent", "Youth"] as const;
+const CATEGORIES = ["Senior", "PWD", "Solo parent", "Youth", "4Ps", "IP", "OSY"] as const;
 const STATUSES = ["Active", "Evidence review", "Expired", "Deactivated"] as const;
 
 const DEACTIVATION_REASONS: { value: SectorDeactivation["reason"]; label: string; note: string }[] = [

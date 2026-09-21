@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 
 import { ArrowRight, HandHeart, Inbox, ShieldCheck } from "lucide-react";
 
+import {
+  type OwnResidentProfile,
+  readOwnResidentProfile,
+} from "@/features/resident-household-registry/services/registry-selectors";
 import { ContentPanel } from "@/shared/components/content-panel";
 import { EmptyState } from "@/shared/components/empty-state";
 import { ErrorState } from "@/shared/components/error-state";
@@ -18,6 +22,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { NativeSelect } from "@/shared/components/ui/native-select";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { useDemoSession } from "@/shared/providers/demo-session-provider";
 import { useOptionalWorkspaceSession } from "@/shared/providers/workspace-session-provider";
 
 import { localSectoralAssistanceRepository as repository } from "../services/local-sectoral-assistance-repository";
@@ -148,16 +153,39 @@ function Programs() {
 }
 
 function Apply({ onSave }: { onSave: (message: string) => void }) {
+  const { session, ready } = useDemoSession();
+  const linkedPersonId =
+    session?.residentAssociation?.status === "linked" ? session.residentAssociation.personId : undefined;
+  const [resident, setResident] = useState<OwnResidentProfile>();
+  const [residentLookupError, setResidentLookupError] = useState(false);
   const [programId, setProgramId] = useState(repository.programs[0].id);
   const [evidence, setEvidence] = useState("Needs assessment and barangay endorsement attached as M05 references.");
   const [evidenceChoice, setEvidenceChoice] = useState("attached");
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!linkedPersonId) {
+      setResident(undefined);
+      return;
+    }
+    let active = true;
+    void readOwnResidentProfile(linkedPersonId).then((result) => {
+      if (!active) return;
+      setResident(result.kind === "success" ? result.data : undefined);
+      setResidentLookupError(result.kind !== "success");
+    });
+    return () => {
+      active = false;
+    };
+  }, [linkedPersonId]);
   return (
     <ContentPanel>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 font-medium text-sm">
           Subject
-          <Input defaultValue="DEMO-PER-001 · Mara Dela Cruz" />
+          <Input
+            readOnly
+            value={resident ? `${resident.personId} · ${resident.displayName}` : "No linked resident record"}
+          />
         </label>
         <label className="grid gap-2 font-medium text-sm">
           Program
@@ -188,6 +216,21 @@ function Apply({ onSave }: { onSave: (message: string) => void }) {
       <NoticePanel className="my-5">
         An age or expiry alert may open a review task. It never grants status or benefit automatically.
       </NoticePanel>
+      {ready && !linkedPersonId && (
+        <NoticePanel className="mb-5">
+          Sign in with a linked resident account before submitting an assistance request.
+        </NoticePanel>
+      )}
+      {residentLookupError && (
+        <p className="mb-3 text-destructive text-sm" role="status">
+          The linked resident record could not be loaded.
+        </p>
+      )}
+      {resident && !resident.currentHouseholdId && (
+        <p className="mb-3 text-destructive text-sm" role="status">
+          The resident needs a current M01 household membership before applying.
+        </p>
+      )}
       {error && (
         <p className="mb-3 text-destructive text-sm" role="alert">
           {error}
@@ -202,9 +245,18 @@ function Apply({ onSave }: { onSave: (message: string) => void }) {
         </Button>
         <Button
           onClick={() => {
+            if (!resident?.currentHouseholdId) {
+              setError("A linked resident and current household record are required.");
+              return;
+            }
             const created =
               evidenceChoice === "attached"
-                ? repository.createRequest({ programId, evidenceNote: evidence })
+                ? repository.createRequest({
+                    programId,
+                    evidenceNote: evidence,
+                    personId: resident.personId,
+                    householdId: resident.currentHouseholdId,
+                  })
                 : undefined;
             if (!created) {
               setError("Choose a program and describe the evidence using at least eight characters.");

@@ -66,7 +66,7 @@ export function RoutingTemplateDetailView({ templateId }: { templateId: string }
     return (
       <PermissionState
         title="Routing templates are limited to municipal administrators"
-        description="Barangay, partner, and enumerator roles can use assigned tasks but cannot change routing configuration."
+        description="Barangay, partner, and Field Surveyor roles can use assigned tasks but cannot change routing configuration."
         action={
           <Button asChild variant="outline">
             <Link href="/ops/routing/templates">Back to templates</Link>

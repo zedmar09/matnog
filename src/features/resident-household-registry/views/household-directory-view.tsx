@@ -265,7 +265,7 @@ export function HouseholdDirectoryView() {
               sortValue: (row) => row.structure?.street ?? "",
               cell: (row) =>
                 row.structure
-                  ? `${row.structure.houseNumber} ${row.structure.street}, ${row.structure.purok}`
+                  ? `${row.structure.houseNumber} ${row.structure.street}, ${[row.structure.sitio, row.structure.purok].filter(Boolean).join(", ")}`
                   : "No address recorded",
             },
             {
@@ -350,7 +350,8 @@ export function HouseholdDirectoryView() {
                 {row.structure && (
                   <small>
                     <MapPin size={13} aria-hidden="true" />
-                    {row.structure.houseNumber} {row.structure.street}, {row.structure.purok},{" "}
+                    {row.structure.houseNumber} {row.structure.street},{" "}
+                    {[row.structure.sitio, row.structure.purok].filter(Boolean).join(", ")},{" "}
                     {row.structure.barangay.label}
                   </small>
                 )}

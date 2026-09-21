@@ -27,14 +27,14 @@ export class LocalSectoralAssistanceRepository {
     return this.ledger.find((item) => item.id === id);
   }
 
-  createRequest(input: { programId: string; evidenceNote: string }) {
+  createRequest(input: { programId: string; evidenceNote: string; personId: string; householdId: string }) {
     const program = this.programs.find((item) => item.id === input.programId);
-    if (!program || input.evidenceNote.trim().length < 8) return undefined;
+    if (!program || !input.personId || !input.householdId || input.evidenceNote.trim().length < 8) return undefined;
     this.sequence += 1;
     const created: AssistanceRequest = {
       id: `DEMO-AID-${this.sequence}`,
-      personId: "DEMO-PER-001",
-      householdId: "DEMO-HH-001",
+      personId: input.personId,
+      householdId: input.householdId,
       programId: program.id,
       programName: program.name,
       period: program.period,

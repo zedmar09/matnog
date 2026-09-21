@@ -12,6 +12,8 @@ export type CaseTimelineEntry = {
 
 export type CaseRecord = {
   id: string;
+  /** Protected M01 references; these never enter a general resident projection. */
+  participantPersonIds?: string[];
   caseClass: CaseClass;
   discreetLabel: string;
   scope: string;

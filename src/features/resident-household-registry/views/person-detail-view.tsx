@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Link from "next/link";
 
-import { ArrowLeft, FileText, History, Home, IdCard, MapPin } from "lucide-react";
+import { ArrowLeft, FileText, History, Home, IdCard, MapPin, Waypoints } from "lucide-react";
 
 import { ContentPanel, PanelDivider } from "@/shared/components/content-panel";
 import { ErrorState } from "@/shared/components/error-state";
@@ -23,6 +23,7 @@ import { useWorkspaceSession } from "@/shared/providers/workspace-session-provid
 
 import { LifeEventPanel } from "../components/life-event-panel";
 import { ResidencyTimeline } from "../components/residency-timeline";
+import { ResidentServiceSummary } from "../components/resident-service-summary";
 import { VerificationBadge } from "../components/verification-badge";
 import { useRegistryActor } from "../hooks/use-registry-actor";
 import { canEditRegistry } from "../services/registry-projections";
@@ -146,6 +147,10 @@ export function PersonDetailView({ personId }: { personId: string }) {
           <TabsTrigger value="evidence">
             <FileText size={15} />
             Evidence
+          </TabsTrigger>
+          <TabsTrigger value="services">
+            <Waypoints size={15} />
+            Services
           </TabsTrigger>
           <TabsTrigger value="activity">
             <History size={15} />
@@ -283,6 +288,10 @@ export function PersonDetailView({ personId }: { personId: string }) {
               </ul>
             )}
           </ContentPanel>
+        </TabsContent>
+
+        <TabsContent value="services">
+          <ResidentServiceSummary person={person} />
         </TabsContent>
 
         <TabsContent value="activity">

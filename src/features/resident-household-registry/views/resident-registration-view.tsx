@@ -98,7 +98,7 @@ export function ResidentRegistrationView() {
       ...prev,
       houseNumber: structure.houseNumber,
       street: structure.street,
-      sitio: "",
+      sitio: structure.sitio,
       purok: structure.purok,
     }));
   }, [placement.householdId]);
@@ -155,12 +155,12 @@ export function ResidentRegistrationView() {
 
   /** Reuses the household's building unless the clerk changed the address. */
   const resolveStructureId = async () => {
-    const combinedPurok = [placement.sitio, placement.purok].filter(Boolean).join(", ");
     const unchanged =
       selectedStructure &&
       selectedStructure.houseNumber === placement.houseNumber &&
       selectedStructure.street === placement.street &&
-      selectedStructure.purok === combinedPurok;
+      selectedStructure.sitio === placement.sitio &&
+      selectedStructure.purok === placement.purok;
     if (unchanged) return selectedStructure.envelope.id;
     const barangay = BARANGAYS.find((item) => item.id === placement.barangayId);
     if (!actor || !barangay) return selectedStructure?.envelope.id ?? "";

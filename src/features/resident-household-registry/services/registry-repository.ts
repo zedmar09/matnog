@@ -44,7 +44,7 @@ const households = new InMemoryRepository<Household>({
 const structures = new InMemoryRepository<Structure>({
   fixtures: STRUCTURES,
   searchableText: (structure) =>
-    `${structure.houseNumber} ${structure.street} ${structure.purok} ${structure.barangay.label}`,
+    `${structure.houseNumber} ${structure.street} ${structure.sitio} ${structure.purok} ${structure.barangay.label}`,
   latencyMs: 250,
 });
 
@@ -117,7 +117,8 @@ export async function createStructureForAddress(
       createdAt: demoClock.nowIso(),
     }),
     barangay: address.barangay,
-    purok: [address.sitio, address.purok].filter(Boolean).join(", "),
+    sitio: address.sitio,
+    purok: address.purok,
     street: address.street,
     houseNumber: address.houseNumber,
     householdIds,
@@ -225,7 +226,9 @@ export async function listHouseholds(
     .filter((row) => {
       if (!search) return true;
       const haystack = `${row.household.envelope.id} ${row.household.envelope.scope.label} ${
-        row.structure ? `${row.structure.houseNumber} ${row.structure.street} ${row.structure.purok}` : ""
+        row.structure
+          ? `${row.structure.houseNumber} ${row.structure.street} ${row.structure.sitio} ${row.structure.purok}`
+          : ""
       }`;
       return haystack.toLowerCase().includes(search);
     })

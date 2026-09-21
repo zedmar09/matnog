@@ -20,6 +20,17 @@ type SessionContext = {
 };
 const Context = createContext<SessionContext | null>(null);
 const KEY = "digital-matnog-demo-session-v1";
+const SEEDED_RESIDENT_PHONE = "09170000000";
+
+/** This one fictional account already has an approved M01 link on file. */
+function withSeededResidentLink(session: DemoSession): DemoSession {
+  const digits = session.phone.replace(/\D/g, "");
+  const known = digits === SEEDED_RESIDENT_PHONE || digits === `63${SEEDED_RESIDENT_PHONE.slice(1)}`;
+  return known && !session.residentAssociation
+    ? { ...session, residentAssociation: createResidentAssociation("linked") }
+    : session;
+}
+
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<DemoSession | null>(null);
   const [ready, setReady] = useState(false);
@@ -28,14 +39,14 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     try {
       const stored: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
       const restored = restoreDemoSession(stored);
-      if (restored) setSession(restored);
+      if (restored) setSession(withSeededResidentLink(restored));
     } catch {
       /* Storage may be unavailable; the demo still works in memory. */
     }
     setReady(true);
   }, []);
   function signIn(phone?: string) {
-    const next = createDemoVisitorSession(phone);
+    const next = withSeededResidentLink(createDemoVisitorSession(phone));
     setSession(next);
     setExpired(false);
     try {

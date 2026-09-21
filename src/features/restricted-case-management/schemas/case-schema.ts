@@ -4,6 +4,7 @@ const requiredText = (label: string) => z.string().trim().min(2, `${label} is re
 
 export const caseRecordSchema = z.object({
   caseClass: z.enum(["Barangay justice", "VAWC referral", "Child protection", "Blotter record"]),
+  participantPersonIds: z.array(z.string().trim().min(1)).default([]),
   discreetLabel: requiredText("Case label"),
   scope: requiredText("Barangay or scope"),
   assignedDesk: requiredText("Assigned desk"),

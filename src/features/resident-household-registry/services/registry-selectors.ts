@@ -3,7 +3,7 @@ import { ok, type RepositoryResult } from "@/shared/data/repository-result";
 
 import type { BarangayRef, Household, Person, Structure, VerificationState } from "../types/registry";
 import type { RegistryActor } from "./registry-projections";
-import { listHouseholds, listResidents, readPerson } from "./registry-repository";
+import { listHouseholds, listResidents, readPerson, registryStores } from "./registry-repository";
 
 /**
  * Minimal M01-owned projections that another module may place in a selector.
@@ -23,6 +23,7 @@ export type PersonRecordOption = {
 
 export type HouseholdRecordOption = {
   householdId: string;
+  structureId?: string;
   reference: string;
   label: string;
   status: string;
@@ -30,6 +31,60 @@ export type HouseholdRecordOption = {
   memberCount: number;
   barangay?: BarangayRef;
 };
+
+/** The linked account may see its own profile and current address, not the
+ * household's other members or its restricted vulnerability answers. */
+export type OwnResidentProfile = {
+  personId: string;
+  displayName: string;
+  birthDate: string;
+  sex: Person["sex"];
+  civilStatus: string;
+  citizenship: string;
+  occupation?: string;
+  currentBarangay?: BarangayRef;
+  currentHouseholdId?: string;
+  address?: string;
+};
+
+export async function readOwnResidentProfile(
+  personId: string,
+  scenario: ScenarioState = "normal",
+): Promise<RepositoryResult<OwnResidentProfile>> {
+  const actor: RegistryActor = { persona: "resident", personId, label: "Linked resident account" };
+  const result = await readPerson(actor, personId, scenario);
+  if (result.kind !== "success") return result as RepositoryResult<OwnResidentProfile>;
+  const person = result.data;
+  const currentResidency = person.residency.find((period) => !period.to);
+  const currentMembership = person.memberships.find((membership) => !membership.to);
+  const structure = currentResidency
+    ? await registryStores.structures.read(currentResidency.structureId, { actor: actor.label, scenario })
+    : null;
+  const address =
+    structure?.kind === "success"
+      ? [
+          `${structure.data.houseNumber} ${structure.data.street}`.trim(),
+          structure.data.sitio,
+          structure.data.purok,
+          structure.data.barangay.label,
+          "Matnog, Sorsogon",
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : undefined;
+  return ok({
+    personId: person.envelope.id,
+    displayName: [person.firstName, person.middleName, person.lastName, person.suffix].filter(Boolean).join(" "),
+    birthDate: person.birthDate,
+    sex: person.sex,
+    civilStatus: person.civilStatus,
+    citizenship: person.citizenship,
+    occupation: person.occupation,
+    currentBarangay: currentResidency?.barangay,
+    currentHouseholdId: currentMembership?.householdId,
+    address,
+  });
+}
 
 function personOption(person: Person): PersonRecordOption {
   const currentResidency = person.residency.find((period) => !period.to);
@@ -53,6 +108,7 @@ function householdOption(row: {
 }): HouseholdRecordOption {
   return {
     householdId: row.household.envelope.id,
+    structureId: row.structure?.envelope.id,
     reference: row.household.envelope.reference,
     label: row.household.envelope.scope.label,
     status: row.household.envelope.status,

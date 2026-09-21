@@ -150,6 +150,7 @@ export function CaseDetailView({ caseId }: { caseId: string }) {
           <p className="mt-5">{record.administrativeSummary}</p>
           <dl className="registry-facts mt-6">
             <Fact label="Barangay / scope" value={record.scope} />
+            <Fact label="Linked resident IDs" value={record.participantPersonIds?.join(" · ") || "None recorded"} />
             <Fact label="Assigned desk" value={record.assignedDesk} />
             <Fact label="Assigned officer" value={record.assignedOfficer} />
             <Fact label="Procedure" value={record.procedureVersion} />
